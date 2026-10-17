@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <title>Pathfinder | Sign in</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="font-loader.js"></script>
+    <style>
+        :root {
+            --sidebar-bg: #153b3a;
+            --sidebar-deep: #153b3a;
+            --page-bg: #f3f5f2;
+            --field: #ffffff;
+            --field-border: #d7ddd9;
+            --panel-bg: rgba(255,255,255,0.3);
+            --text: #183432;
+            --muted: #6d7c78;
+            --teal: #087f75;
+            --teal-dark: #155f55;
+            --white: #ffffff;
+            --shadow: 0 18px 32px rgba(12, 35, 35, 0.12);
+            --error: #b54845;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            font-family: "Poppins", sans-serif;
+            background: var(--page-bg);
+        }
+
+        body.login-page {
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            display: block;
+            background: var(--page-bg);
+        }
+
+        button,
+        input,
+        a {
+            font: inherit;
+        }
+
+        .login-shell {
+            display: grid;
+            grid-template-columns: 45% 55%;
+            width: 100%;
+            max-width: none;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            background: var(--page-bg);
+        }
+
+        .brand-panel {
+            position: relative;
+            overflow: hidden;
+            min-height: 100vh;
+            padding: 52px 30px 28px 60px;
+            background: linear-gradient(180deg, var(--sidebar-bg), var(--sidebar-deep));
+            color: var(--white);
+        }
+
+        .brand-panel::before,
+        .brand-panel::after {
+            content: "";
+            position: absolute;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255,255,255,0.02);
+        }
+
+        .brand-panel::before {
+            width: 520px;
+            height: 520px;
+            right: -220px;
+            bottom: -240px;
+            border-color: rgba(255,255,255,0.04);
+            background: rgba(255,255,255,0.015);
+        }
+
+        .brand-panel::after {
+            width: 620px;
+            height: 620px;
+            right: -270px;
+            bottom: -290px;
+            border-color: rgba(217,194,92,0.16);
+            background: transparent;
+        }
+
+        .brand-top {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-mark {
+            width: 38px;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 11px;
+            background: #f3d751;
+            color: #0d3737;
+            font-size: 1.2rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .brand-name {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .brand-name h1 {
+            margin: 0;
+            font-size: 1rem;
+            letter-spacing: -0.04em;
+            color: var(--white);
+            font-weight: 700;
+        }
+
+        .brand-name p {
+            margin: 0;
+            font-size: 0.68rem;
+            color: rgba(255,255,255,0.8);
+            letter-spacing: 0.01em;
+        }
+
+        .brand-copy {
+            position: relative;
+            z-index: 1;
+            margin-top: 169px;
+            max-width: 390px;
+        }
+
+        .eyebrow {
+            margin: 0 0 18px;
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            font-weight: 700;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .hero-title {
+            margin: 0;
+            font-size: clamp(2.65rem, 4.25vw, 2.85rem);
+            line-height: 1.1;
+            letter-spacing: -0.06em;
+            font-weight: 800;
+            color: var(--white);
+        }
+
+        .hero-title span {
+            display: block;
+        }
+
+        .hero-summary {
+            max-width: 370px;
+            margin: 18px 0 0;
+            font-size: 1rem;
+            line-height: 1.65;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .brand-footer {
+            position: absolute;
+            left: 60px;
+            bottom: 16px;
+            z-index: 1;
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.8);
+            font-weight: 500;
+        }
+
+        .form-panel {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+            margin: 0;
+            padding: 57px 22px 42px 26px;
+            background: #f0f3f1;
+        }
+
+        .form-card {
+            width: min(100%, 432px);
+            padding: 50px 41px 37px;
+            border: 1px solid #d6d9d6;
+            border-radius: 18px;
+            background: #fffefa;
+            box-shadow: 0 18px 38px rgba(22, 52, 50, 0.08);
+            transform: translateY(-16px);
+        }
+
+        .auth-header {
+            text-align: left;
+        }
+
+        .auth-header .eyebrow {
+            color: var(--teal);
+            margin: 0 0 17px;
+            letter-spacing: 0.18em;
+            font-size: 0.66rem;
+            font-weight: 700;
+        }
+
+        .auth-header h1 {
+            margin: 0;
+            font-size: 1.65rem;
+            line-height: 1.2;
+            letter-spacing: -0.045em;
+            color: var(--text);
+            font-weight: 800;
+        }
+
+        .intro {
+            margin: 11px 0 28px;
+            color: var(--muted);
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        .field {
+            margin-bottom: 19px;
+        }
+
+        .field:first-child {
+            margin-bottom: 24px;
+        }
+
+        .password-field {
+            margin-bottom: 25px;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 5px;
+            color: #2b3f3d;
+            font-size: 0.76rem;
+            font-weight: 600;
+        }
+
+        .password-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 3px;
+        }
+
+        .password-label label {
+            margin: 0;
+        }
+
+        .password-label a,
+        .signup-prompt a {
+            color: var(--teal);
+            text-decoration: none;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .password-label a:hover,
+        .signup-prompt a:hover {
+            text-decoration: underline;
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            top: 50%;
+            left: 14px;
+            width: 18px;
+            height: 18px;
+            color: var(--muted);
+            transform: translateY(-50%);
+            pointer-events: none;
+            display: none;
+        }
+
+        input[type="email"],
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            min-height: 47px;
+            padding: 11px 13px;
+            border: 1px solid var(--field-border);
+            border-radius: 9px;
+            background: var(--field);
+            color: var(--text);
+            font-size: 0.8rem;
+            outline: none;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        input::placeholder {
+            color: rgba(34, 52, 50, 0.5);
+        }
+
+        input:hover {
+            border-color: rgba(31, 122, 109, 0.5);
+        }
+
+        input:focus {
+            border-color: var(--teal);
+            background: var(--white);
+            box-shadow: 0 0 0 4px rgba(31, 122, 109, 0.12);
+        }
+
+        .password-input {
+            padding-right: 58px !important;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--teal);
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+
+        .password-toggle:hover {
+            color: var(--teal-dark);
+        }
+
+        .password-toggle svg {
+            width: 18px;
+            height: 18px;
+            display: block;
+        }
+
+        .field-error,
+        .caps-warning {
+            margin: 8px 0 0;
+            font-size: 0.78rem;
+            line-height: 1.4;
+        }
+
+        .field-error {
+            color: var(--error);
+        }
+
+        .caps-warning {
+            color: var(--muted);
+        }
+
+        .login-button {
+            width: 100%;
+            min-height: 46px;
+            margin-top: 4px;
+            padding: 0 18px;
+            border: 0;
+            border-radius: 8px;
+            background: var(--teal);
+            color: var(--white);
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: 700;
+            box-shadow: none;
+            transition: background 0.18s ease, transform 0.18s ease;
+        }
+
+        .login-button:hover {
+            background: var(--teal-dark);
+            transform: translateY(-1px);
+        }
+
+        .form-status {
+            min-height: 1.2em;
+            margin: 12px 0 0;
+            text-align: center;
+            color: var(--error);
+            font-size: 0.8rem;
+        }
+
+        .form-status:empty {
+            min-height: 0;
+            margin: 0;
+        }
+
+        .signup-prompt {
+            margin: 22px 0 8px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.68rem;
+        }
+
+        .legal-note {
+            margin: 17px 0 0;
+            text-align: center;
+            color: rgba(42, 61, 59, 0.72);
+            font-size: 0.65rem;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        .spinner {
+            width: 17px;
+            height: 17px;
+            display: inline-block;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 980px) {
+            .login-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .brand-panel {
+                min-height: 420px;
+                padding-bottom: 54px;
+            }
+
+            .brand-copy {
+                margin-top: 80px;
+            }
+
+            .form-panel {
+                padding: 18px 24px 32px;
+            }
+        }
+
+        @media (max-width: 540px) {
+            .brand-panel {
+                padding: 24px 18px 52px;
+            }
+
+            .brand-copy {
+                margin-top: 64px;
+            }
+
+            .hero-title {
+                font-size: 2.65rem;
+            }
+
+            .brand-footer {
+                left: 18px;
+                bottom: 18px;
+            }
+
+            .form-panel {
+                padding: 18px 14px 26px;
+            }
+
+            .form-card {
+                padding: 28px 22px 24px;
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body class="login-page">
+    <main class="login-shell">
+        <aside class="brand-panel" aria-label="Pathfinder overview">
+            <div class="brand-top">
+                <span class="brand-mark" aria-hidden="true">P</span>
+                <div class="brand-name">
+                    <h1>Pathfinder</h1>
+                    <p>Asset Traceability</p>
+                </div>
+            </div>
+
+            <div class="brand-copy">
+                <p class="eyebrow">MINI KIOSK OPERATIONS</p>
+                <h2 class="hero-title">
+                    <span>Know every</span>
+                    <span>part.</span>
+                    <span>Trace every</span>
+                    <span>move.</span>
+                </h2>
+                <p class="hero-summary">
+                    Keep kiosk components, service history, and maintenance activity connected in one place.
+                </p>
+            </div>
+
+            <div class="brand-footer">Pathfinder • Asset Traceability</div>
+        </aside>
+
+        <section class="form-panel">
+            <div class="form-card">
+                <div class="auth-header">
+                    <p class="eyebrow">WELCOME BACK</p>
+                    <h1>Sign in to Pathfinder</h1>
+                    <p class="intro">Enter your account details to continue.</p>
+                </div>
+
+                <form id="login-form" novalidate>
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <div class="input-wrap">
+                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                                <path d="M4 7L12 13L20 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <input
+                                type="email"
+                                id="email"
+                                name="email"
+                                placeholder="you@company.com"
+                                autocomplete="email"
+                                autocapitalize="none"
+                                spellcheck="false"
+                                required
+                            >
+                        </div>
+                        <p class="field-error" id="email-error" hidden></p>
+                    </div>
+
+                    <div class="field password-field">
+                        <div class="password-label">
+                            <label for="password">Password</label>
+                            <a href="forgot-password.html">Forgot password?</a>
+                        </div>
+                        <div class="input-wrap">
+                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                                <path d="M8 10V7a4 4 0 1 1 8 0v3M12 14v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            </svg>
+                            <input
+                                class="password-input"
+                                type="password"
+                                id="password"
+                                name="password"
+                                placeholder="Enter your password"
+                                autocomplete="current-password"
+                                aria-describedby="caps-warning"
+                                required
+                            >
+                            <button
+                                class="password-toggle"
+                                type="button"
+                                id="password-toggle"
+                                aria-label="Show password"
+                                aria-pressed="false"
+                            >
+                                <svg id="eye-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                                    <circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.8"/>
+                                </svg>
+                                <svg id="eye-off-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" hidden>
+                                    <path d="m3 3 18 18M10.6 6.2A10.8 10.8 0 0 1 12 6c6.1 0 9.5 6 9.5 6a16 16 0 0 1-3.1 3.7M6.2 6.8C3.8 8.3 2.5 12 2.5 12s3.4 6 9.5 6c1.2 0 2.3-.2 3.3-.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <p class="field-error" id="password-error" hidden></p>
+                        <p class="caps-warning" id="caps-warning" aria-live="polite" hidden>Caps Lock is on.</p>
+                    </div>
+
+                    <button class="login-button" id="submit-button" type="submit">
+                        <span id="button-label">Sign in</span>
+                        <span class="spinner" id="button-spinner" aria-hidden="true" hidden></span>
+                    </button>
+                    <p class="form-status" id="login-status" role="status" aria-live="polite"></p>
+                </form>
+
+                <p class="signup-prompt" id="signup-prompt">New to Pathfinder? <a href="signup.html">Sign up</a></p>
+                <p class="legal-note">Authorized Pathfinder users only.</p>
+            </div>
+        </section>
+    </main>
+
+    <script type="module" src="./auth-client.js"></script>
+</body>
+</html>

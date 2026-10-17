@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathfinder | Kiosks</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="stylesheet" href=".vscode/style.css">
+    <script defer src=".vscode/font-loader.js"></script>
+    <script defer src=".vscode/app-shell.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Pathfinder</h1>
+        <p>Asset Traceability</p>
+    </header>
+
+    <nav aria-label="Main navigation">
+        <ul>
+            <li><a href="index.html">Dashboard</a></li>
+            <li><a href="kiosks.html" aria-current="page">Kiosks</a></li>
+            <li><a href="components.html">Components</a></li>
+            <li><a href="log-event.html">Log an Event</a></li>
+            <li><a href="fault-history.html">Fault History</a></li>
+            <li><a href="alerts.html">Alerts</a></li>
+            <li><a href="reports.html">Reports</a></li>
+            <li><a href="users.html">Users</a></li>
+            <li><a href="audit-log.html">Audit Log</a></li>
+            <li><a href="account.html">My account</a></li>
+        </ul>
+        <a class="nav-signout" href="signout.html">Sign out</a>
+    </nav>
+
+    <main data-page="kiosks">
+        <h2>Kiosks</h2>
+        <p>View kiosk configuration and installed components.</p>
+
+        <section aria-labelledby="search-heading">
+            <h3 id="search-heading">Find a kiosk</h3>
+            <form action="#" method="get">
+                <label for="kiosk-search">Search kiosk ID or location:</label>
+                <input type="search" id="kiosk-search" name="q" placeholder="e.g. KSK-001 or Accra">
+                <button type="submit">Search</button>
+            </form>
+        </section>
+
+        <section aria-labelledby="kiosk-list-heading">
+            <h3 id="kiosk-list-heading">Kiosk list</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Kiosk</th>
+                        <th scope="col">Location</th>
+                        <th scope="col">Components</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Installed</th>
+                        <th scope="col">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="6">No kiosks have been added yet.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+    <script type="module" src=".vscode/auth-client.js"></script>
+    <script type="module" src=".vscode/data-page-client.js"></script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>One-time admin account setup</title>
+<style>
+:root{--fs-base:0.875rem;--fs-input:0.875rem}
+body{font:var(--fs-base) system-ui,sans-serif;line-height:1.5;background:#eef3f0;color:#183432;margin:0;padding:24px}
+main{max-width:420px;margin:8vh auto;padding:24px;background:white;border:1px solid #d8ddda;border-radius:12px}
+label{display:block;margin:14px 0 5px}input,button{box-sizing:border-box;width:100%;min-height:44px;padding:10px;border:1px solid #c5ccc8;border-radius:7px;font:inherit}
+button{margin-top:18px;background:#1f7a6d;color:white;border:0;cursor:pointer}#status{white-space:pre-wrap} .warning{color:#a12622;font-weight:700}
+@media(max-width:600px){:root{--fs-base:0.8125rem;--fs-input:1rem}input,button{font-size:var(--fs-input)}}
+</style>
+<main>
+<h1>One-time admin account setup</h1>
+<p class="warning">Delete this file after use.</p>
+<p>Creates the account and a regular technician profile. Assign the administrator role manually in Firebase Console.</p>
+<form id="setup">
+<label for="name">Full name</label><input id="name" autocomplete="name" required>
+<label for="email">Email</label><input id="email" type="email" value="admin@tracepoint.com" required>
+<label for="password">Password</label><input id="password" type="password" autocomplete="new-password" minlength="6" required>
+<button id="submit">Create admin account</button>
+</form><p id="status" role="status" aria-live="polite"></p>
+</main>
+<script type="module">
+import {auth} from "./.vscode/firebase-auth-client.js";
+import {createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,updateProfile} from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
+import {doc,getDoc,setDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+import {db} from "./.vscode/firebase-client.js";
+const form=document.querySelector("#setup"), status=document.querySelector("#status"), button=document.querySelector("#submit");
+form.addEventListener("submit",async event=>{
+ event.preventDefault(); button.disabled=true; status.textContent="Working...";
+ let user=null, message="";
+ try {
+  const email=document.querySelector("#email").value.trim().toLowerCase(), name=document.querySelector("#name").value.trim(), password=document.querySelector("#password").value;
+  try { user=(await createUserWithEmailAndPassword(auth,email,password)).user; await updateProfile(user,{displayName:name}); }
+  catch(error) { if(error.code!=="auth/email-already-in-use") throw error; user=(await signInWithEmailAndPassword(auth,email,password)).user; }
+  const ref=doc(db,"users",user.uid), existing=await getDoc(ref);
+  if(existing.exists()) message=`Existing profile left unchanged.\nUID: ${user.uid}\nCurrent role: ${existing.data().role||"not set"}`;
+  else { await setDoc(ref,{email:user.email||email,displayName:user.displayName||name,role:"technician",createdAt:serverTimestamp()}); message=`Account and profile created.\nUID: ${user.uid}\nSaved role: technician`; }
+  message+="\nAssign administrator role manually in Firebase Console.";
+ } catch(error) { message=`Setup failed: ${error.message||error}${user?`\nUID: ${user.uid}`:""}`; }
+ finally {
+  if(user&&auth.currentUser) try { await signOut(auth); } catch(error) { message+=`\nSign-out failed: ${error.message||error}`; }
+  document.querySelector("#password").value=""; button.disabled=false; status.textContent=message;
+ }
+});
+</script>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathfinder | Audit Log</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="stylesheet" href=".vscode/style.css">
+    <script defer src=".vscode/font-loader.js"></script>
+    <script defer src=".vscode/app-shell.js"></script>
+</head>
+<body>
+    <header><h1>Pathfinder</h1><p>Asset Traceability</p></header>
+    <nav aria-label="Main navigation">
+        <ul>
+            <li><a href="index.html">Dashboard</a></li>
+            <li><a href="kiosks.html">Kiosks</a></li>
+            <li><a href="components.html">Components</a></li>
+            <li><a href="log-event.html">Log an Event</a></li>
+            <li><a href="fault-history.html">Fault History</a></li>
+            <li><a href="alerts.html">Alerts</a></li>
+            <li><a href="reports.html">Reports</a></li>
+            <li><a href="users.html">Users</a></li>
+            <li><a href="audit-log.html" aria-current="page">Audit Log</a></li>
+            <li><a href="account.html">My account</a></li>
+        </ul>
+        <a class="nav-signout" href="signout.html">Sign out</a>
+    </nav>
+    <main data-page="audit-log">
+        <h2>Audit Log</h2>
+        <p>A record of actions taken in the system will appear here.</p>
+    </main>
+    <script type="module" src=".vscode/auth-client.js"></script>
+    <script type="module" src=".vscode/data-page-client.js"></script>
+</body>
+</html>

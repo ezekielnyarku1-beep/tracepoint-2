@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#123e3b">
+    <title>Pathfinder | Log an Event</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <link rel="stylesheet" href=".vscode/style.css">
+    <script defer src=".vscode/font-loader.js"></script>
+    <script defer src=".vscode/app-shell.js"></script>
+</head>
+<body class="event-page">
+    <header class="event-brand">
+        <div>
+            <h1>Pathfinder</h1>
+            <p>Asset Traceability</p>
+        </div>
+    </header>
+
+    <nav aria-label="Main navigation">
+        <ul>
+            <li><a href="index.html">Dashboard</a></li>
+            <li><a href="kiosks.html">Kiosks</a></li>
+            <li><a href="components.html">Components</a></li>
+            <li><a href="log-event.html" aria-current="page">Log an Event</a></li>
+            <li><a href="fault-history.html">Fault History</a></li>
+            <li><a href="alerts.html">Alerts</a></li>
+            <li><a href="reports.html">Reports</a></li>
+            <li><a href="users.html">Users</a></li>
+            <li><a href="audit-log.html">Audit Log</a></li>
+            <li><a href="account.html">My account</a></li>
+        </ul>
+        <a class="nav-signout" href="signout.html">Sign out</a>
+    </nav>
+
+    <main class="log-event-main">
+        <h2>Log a component event</h2>
+        <p>Not just swaps — record a move, an install, a removal, a decommission, maintenance, or a fault, all in one place.</p>
+
+        <ol class="event-progress" aria-label="Event logging steps">
+            <li aria-current="step"><span>1</span> Event</li>
+            <li><span>2</span> Component</li>
+            <li><span>3</span> Details</li>
+            <li><span>4</span> Confirm</li>
+        </ol>
+
+        <section class="event-card" aria-label="Component event form">
+            <div class="event-scanner">
+                <span class="event-scanner-icon" aria-hidden="true">
+                    <svg viewBox="0 0 48 48" fill="none">
+                        <path d="M6 18V9a3 3 0 0 1 3-3h9M30 6h9a3 3 0 0 1 3 3v9M42 30v9a3 3 0 0 1-3 3h-9M18 42H9a3 3 0 0 1-3-3v-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M14 17h5v5h-5zM29 17h5v5h-5zM14 29h5v5h-5zM27 29h2m4 0h3m-9 5h3m4 0h4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <h3>Scan a component</h3>
+                <p>Allow camera access, then hold the component QR code or barcode steady in the camera view.</p>
+                <button class="event-scan-button" id="scan-button" type="button">
+                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <path d="M2.5 7V4.5A2 2 0 0 1 4.5 2.5H7m6 0h2.5a2 2 0 0 1 2 2V7m0 6v2.5a2 2 0 0 1-2 2H13m-6 0H4.5a2 2 0 0 1-2-2V13M6 6h2v2H6zm6 0h2v2h-2zM6 12h2v2H6zm6 0h1m2 0h1m-4 2h2m2 0h1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Scan QR / barcode
+                </button>
+                <p class="event-scan-status" id="scan-status" role="status" aria-live="polite"></p>
+            </div>
+
+            <form id="event-form" class="event-form">
+                <div class="event-fields">
+                    <div class="event-field">
+                        <label for="event-type">Event type <span aria-hidden="true">*</span></label>
+                        <select id="event-type" name="eventType" required>
+                            <option value="">Choose an event type</option>
+                            <option value="move">Move</option>
+                            <option value="install">Install</option>
+                            <option value="removal">Removal</option>
+                            <option value="decommission">Decommission</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="fault">Fault</option>
+                        </select>
+                    </div>
+
+                    <div class="event-field">
+                        <label for="component-id">Component ID or serial number <span aria-hidden="true">*</span></label>
+                        <input id="component-id" name="componentId" type="text" placeholder="Enter a component ID or serial number" autocomplete="off" required aria-describedby="component-status">
+                        <p class="event-field-status" id="component-status" role="status" aria-live="polite"></p>
+                    </div>
+
+                    <div class="event-field">
+                        <label for="kiosk-id">Kiosk <span aria-hidden="true">*</span></label>
+                        <select id="kiosk-id" name="kioskId" required disabled>
+                            <option value="">Loading kiosks…</option>
+                        </select>
+                        <p class="event-field-status" id="kiosk-status" role="status" aria-live="polite">Loading kiosks from inventory…</p>
+                    </div>
+
+                    <div class="event-field">
+                        <label for="event-summary">Reason / summary <span aria-hidden="true">*</span></label>
+                        <input id="event-summary" name="summary" type="text" placeholder="Briefly describe what happened" maxlength="160" required>
+                    </div>
+
+                    <div class="event-field event-field-wide">
+                        <label for="event-notes">Notes</label>
+                        <textarea id="event-notes" name="notes" rows="4" maxlength="5000" placeholder="Add any extra details that will help your team"></textarea>
+                    </div>
+                </div>
+
+                <p class="event-form-status" id="event-form-status" role="status" aria-live="polite"></p>
+                <div class="event-form-actions">
+                    <button class="event-clear-button" type="reset">Clear</button>
+                    <button class="event-submit-button" id="submit-event" type="submit" disabled>Log event</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <dialog class="event-scanner-dialog" id="scanner-dialog" aria-labelledby="scanner-title">
+        <div class="scanner-dialog-header">
+            <h2 id="scanner-title">Scan a QR code or barcode</h2>
+            <button class="scanner-close-button" id="scanner-close" type="button" aria-label="Close scanner">×</button>
+        </div>
+        <video id="scanner-video" playsinline muted aria-label="Live camera view for barcode scanning"></video>
+        <p id="scanner-dialog-status" role="status" aria-live="polite">Point the camera at a component label.</p>
+        <button class="scanner-cancel-button" id="scanner-cancel" type="button">Cancel scanning</button>
+    </dialog>
+
+    <script type="module" src=".vscode/auth-client.js"></script>
+    <script type="module" src=".vscode/event-client.js"></script>
+</body>
+</html>

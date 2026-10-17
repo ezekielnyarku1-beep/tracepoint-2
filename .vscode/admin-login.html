@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathfinder | Admin and Supervisor Sign in</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="font-loader.js"></script>
+</head>
+<body class="login-page">
+    <main class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <span class="logo-icon" aria-hidden="true">T</span>
+                <h1>Pathfinder</h1>
+                <p>Asset Traceability System</p>
+            </div>
+
+            <h2>Admin and supervisor sign in</h2>
+            <p class="login-description">Sign in with your authorized Pathfinder account.</p>
+
+            <form id="admin-login-form" novalidate>
+                <div class="form-group">
+                    <label for="email">Email address</label>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="you@example.com"
+                        autocomplete="email"
+                        autocapitalize="none"
+                        spellcheck="false"
+                        required
+                    >
+                    <p class="account-status" id="email-error" hidden></p>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                        aria-describedby="caps-warning"
+                        required
+                    >
+                    <p class="account-status" id="password-error" hidden></p>
+                    <p class="caps-warning" id="caps-warning" aria-live="polite" hidden>Caps Lock is on.</p>
+                </div>
+
+                <div class="login-options">
+                    <label class="remember-label" for="remember">
+                        <input type="checkbox" id="remember" name="remember">
+                        Remember me
+                    </label>
+                    <a href="forgot-password.html">Forgot password?</a>
+                </div>
+
+                <button class="login-button" id="submit-button" type="submit">
+                    <span id="button-label">Sign in</span>
+                </button>
+                <p class="account-status" id="login-status" role="status" aria-live="polite"></p>
+            </form>
+
+            <p class="login-footer">Access is limited to supervisor and administrator accounts.</p>
+        </div>
+    </main>
+
+    <script type="module" src="./auth-client.js"></script>
+</body>
+</html>

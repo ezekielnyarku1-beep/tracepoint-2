@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathfinder | Account settings</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="stylesheet" href=".vscode/style.css">
+    <script defer src=".vscode/font-loader.js"></script>
+    <script defer src=".vscode/app-shell.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Pathfinder</h1>
+        <p>Asset Traceability</p>
+    </header>
+    <nav aria-label="Main navigation">
+        <ul>
+            <li><a href="index.html">Dashboard</a></li>
+            <li><a href="kiosks.html">Kiosks</a></li>
+            <li><a href="components.html">Components</a></li>
+            <li><a href="log-event.html">Log an Event</a></li>
+            <li><a href="fault-history.html">Fault History</a></li>
+            <li><a href="alerts.html">Alerts</a></li>
+            <li><a href="reports.html">Reports</a></li>
+            <li><a href="users.html">Users</a></li>
+            <li><a href="audit-log.html">Audit Log</a></li>
+            <li><a href="account.html" aria-current="page">My account</a></li>
+        </ul>
+        <a class="nav-signout" href="signout.html">Sign out</a>
+    </nav>
+    <main>
+        <div class="dashboard-heading">
+            <h2>Account</h2>
+            <p>Manage your profile and password.</p>
+        </div>
+
+        <section class="account-card" aria-labelledby="account-title">
+            <header class="account-brand">
+                <span class="account-brand-mark" aria-hidden="true">T</span>
+                <h1>Pathfinder</h1>
+                <p>Asset Traceability System</p>
+            </header>
+
+            <h2 id="account-title">Account settings</h2>
+            <p class="account-email">
+                Signed in as <strong id="account-email"></strong>
+            </p>
+
+            <form class="account-form" id="account-form">
+                <label for="display-name">Name</label>
+                <input
+                    type="text"
+                    id="display-name"
+                    name="name"
+                    autocomplete="name"
+                    required
+                >
+
+                <label for="current-password">Current password</label>
+                <input
+                    type="password"
+                    id="current-password"
+                    name="currentPassword"
+                    autocomplete="current-password"
+                >
+
+                <label for="new-password">New password <span>(optional, at least 6 characters)</span></label>
+                <input
+                    type="password"
+                    id="new-password"
+                    name="newPassword"
+                    autocomplete="new-password"
+                    minlength="6"
+                >
+
+                <label for="confirm-password">Confirm new password</label>
+                <input
+                    type="password"
+                    id="confirm-password"
+                    name="confirmPassword"
+                    autocomplete="new-password"
+                >
+
+                <button class="account-save-button" id="account-save-button" type="submit">
+                    Save account
+                </button>
+                <p class="account-status" id="account-status" role="status" aria-live="polite"></p>
+            </form>
+
+            <a class="account-back-link" href="index.html">Back to dashboard</a>
+        </section>
+    </main>
+    <script type="module" src=".vscode/auth-client.js"></script>
+</body>
+</html>

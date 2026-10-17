@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <title>Pathfinder | Sign Up</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="font-loader.js"></script>
+    <style>
+        :root {
+            --sidebar-bg: #083f3d;
+            --sidebar-deep: #052f2f;
+            --page-bg: #efefee;
+            --field: #f8f9f8;
+            --field-border: #d7ddd9;
+            --panel-bg: rgba(255,255,255,0.3);
+            --text: #1f3b3b;
+            --muted: #5c6865;
+            --teal: #1f7a6d;
+            --teal-dark: #155f55;
+            --white: #ffffff;
+            --shadow: 0 18px 32px rgba(12, 35, 35, 0.12);
+            --error: #b54845;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            font-family: "Poppins", sans-serif;
+            background: var(--page-bg);
+        }
+
+        body.login-page {
+            min-height: 100vh;
+            background: var(--page-bg);
+        }
+
+        button, input, a {
+            font: inherit;
+        }
+
+        .login-shell {
+            display: grid;
+            grid-template-columns: 46% 54%;
+            min-height: 100vh;
+            background: var(--page-bg);
+        }
+
+        .brand-panel {
+            position: relative;
+            overflow: hidden;
+            padding: 38px 52px 28px;
+            background: linear-gradient(180deg, var(--sidebar-bg), var(--sidebar-deep));
+            color: var(--white);
+        }
+
+        .brand-panel::before,
+        .brand-panel::after {
+            content: "";
+            position: absolute;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.02);
+        }
+
+        .brand-panel::before {
+            width: 430px;
+            height: 430px;
+            right: -120px;
+            bottom: -110px;
+        }
+
+        .brand-panel::after {
+            width: 500px;
+            height: 500px;
+            left: -130px;
+            bottom: -180px;
+        }
+
+        .brand-top {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-mark {
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: #f3d751;
+            color: #0d3737;
+            font-size: 1.2rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .brand-name {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .brand-name h1 {
+            margin: 0;
+            font-size: 1.1rem;
+            letter-spacing: -0.04em;
+            color: var(--white);
+            font-weight: 700;
+        }
+
+        .brand-name p {
+            margin: 0;
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .brand-copy {
+            position: relative;
+            z-index: 1;
+            margin-top: 110px;
+            max-width: 540px;
+        }
+
+        .eyebrow {
+            margin: 0 0 18px;
+            font-size: 0.8rem;
+            letter-spacing: 0.16em;
+            font-weight: 700;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .hero-title {
+            margin: 0;
+            font-size: clamp(3.5rem, 4vw, 5.4rem);
+            line-height: 0.9;
+            letter-spacing: -0.065em;
+            font-weight: 800;
+            color: var(--white);
+        }
+
+        .hero-title span { display: block; }
+
+        .hero-summary {
+            max-width: 440px;
+            margin-top: 28px;
+            font-size: 1.14rem;
+            line-height: 1.45;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .brand-footer {
+            position: absolute;
+            left: 52px;
+            bottom: 24px;
+            z-index: 1;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.8);
+            font-weight: 500;
+        }
+
+        .form-panel {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 42px 24px;
+            background: #f0f3f1;
+        }
+
+        .form-card {
+            width: min(100%, 520px);
+            padding: 34px 32px 28px;
+            border: 1px solid var(--field-border);
+            border-radius: 18px;
+            background: rgba(255,255,255,0.22);
+            box-shadow: var(--shadow);
+        }
+
+        .auth-header { text-align: center; }
+
+        .auth-header .eyebrow {
+            color: var(--teal);
+            margin-bottom: 8px;
+            letter-spacing: 0.18em;
+            font-size: 0.76rem;
+        }
+
+        .auth-header h1 {
+            margin: 0;
+            font-size: clamp(2.1rem, 2vw, 3rem);
+            line-height: 1.07;
+            letter-spacing: -0.06em;
+            color: var(--text);
+            font-weight: 800;
+        }
+
+        .intro {
+            margin: 12px 0 20px;
+            color: var(--muted);
+            font-size: 1.03rem;
+            line-height: 1.5;
+        }
+
+        .field {
+            margin-bottom: 18px;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text);
+            font-size: 0.91rem;
+            font-weight: 600;
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            top: 50%;
+            left: 14px;
+            width: 18px;
+            height: 18px;
+            color: var(--muted);
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        input[type="email"],
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            min-height: 50px;
+            padding: 12px 14px 12px 42px;
+            border: 1px solid var(--field-border);
+            border-radius: 10px;
+            background: var(--field);
+            color: var(--text);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        input::placeholder {
+            color: rgba(34, 52, 50, 0.5);
+        }
+
+        input:hover { border-color: rgba(31, 122, 109, 0.5); }
+
+        input:focus {
+            border-color: var(--teal);
+            background: var(--white);
+            box-shadow: 0 0 0 4px rgba(31, 122, 109, 0.12);
+        }
+
+        .password-input { padding-right: 46px !important; }
+
+        .password-toggle {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            width: 34px;
+            height: 34px;
+            display: grid;
+            place-items: center;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--muted);
+            transform: translateY(-50%);
+            cursor: pointer;
+        }
+
+        .password-toggle:hover {
+            background: rgba(31,122,109,0.06);
+            color: var(--text);
+        }
+
+        .password-toggle svg { width: 18px; height: 18px; }
+
+        .field-error,
+        .caps-warning {
+            margin: 8px 0 0;
+            font-size: 0.78rem;
+            line-height: 1.4;
+        }
+
+        .field-error { color: var(--error); }
+
+        .caps-warning { color: var(--muted); }
+
+        .login-button {
+            width: 100%;
+            min-height: 54px;
+            margin-top: 4px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--teal);
+            color: var(--white);
+            cursor: pointer;
+            font-size: 1.05rem;
+            font-weight: 700;
+            box-shadow: 0 8px 16px rgba(15, 72, 65, 0.18);
+            transition: background 0.18s ease, transform 0.18s ease;
+        }
+
+        .login-button:hover {
+            background: var(--teal-dark);
+            transform: translateY(-1px);
+        }
+
+        .form-status {
+            min-height: 1.2em;
+            margin: 12px 0 0;
+            text-align: center;
+            color: var(--error);
+            font-size: 0.8rem;
+        }
+
+        .signup-prompt {
+            margin: 18px 0 8px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.98rem;
+        }
+
+        .signup-prompt a {
+            color: var(--teal);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .signup-prompt a:hover { text-decoration: underline; }
+
+        .legal-note {
+            margin: 0;
+            text-align: center;
+            color: rgba(42,61,59,0.72);
+            font-size: 0.82rem;
+        }
+
+        [hidden] { display: none !important; }
+
+        @media (max-width: 980px) {
+            .login-shell { grid-template-columns: 1fr; }
+            .brand-panel { min-height: 420px; padding-bottom: 54px; }
+            .brand-copy { margin-top: 80px; }
+            .form-panel { padding-top: 18px; }
+        }
+
+        @media (max-width: 540px) {
+            .brand-panel { padding: 24px 18px 52px; }
+            .brand-copy { margin-top: 64px; }
+            .hero-title { font-size: 2.9rem; }
+            .brand-footer { left: 18px; bottom: 18px; }
+            .form-panel { padding: 18px 14px 26px; }
+            .form-card { padding: 22px 16px 18px; }
+        }
+    </style>
+</head>
+<body class="login-page">
+    <main class="login-shell">
+        <aside class="brand-panel" aria-label="Pathfinder overview">
+            <div class="brand-top">
+                <span class="brand-mark" aria-hidden="true">P</span>
+                <div class="brand-name">
+                    <h1>Pathfinder</h1>
+                    <p>Asset Traceability</p>
+                </div>
+            </div>
+
+            <div class="brand-copy">
+                <p class="eyebrow">MINI KIOSK OPERATIONS</p>
+                <h2 class="hero-title">
+                    <span>Know every</span>
+                    <span>part.</span>
+                    <span>Trace every</span>
+                    <span>move.</span>
+                </h2>
+                <p class="hero-summary">
+                    Keep kiosk components, service history, and maintenance activity connected in one place.
+                </p>
+            </div>
+
+            <div class="brand-footer">Pathfinder • Asset Traceability</div>
+        </aside>
+
+        <section class="form-panel">
+            <div class="form-card">
+                <div class="auth-header">
+                    <p class="eyebrow">WELCOME</p>
+                    <h1>Create your account</h1>
+                    <p class="intro">Sign up to get access to your Pathfinder dashboard.</p>
+                </div>
+
+                <form id="signup-form">
+                    <div class="field">
+                        <label for="name">Full name</label>
+                        <div class="input-wrap">
+                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+                                <path d="M5 20C5.7 16.7 8.1 15 12 15C15.9 15 18.3 16.7 19 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            </svg>
+                            <input type="text" id="name" name="name" placeholder="Your name" autocomplete="name" required>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <div class="input-wrap">
+                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                                <path d="M4 7L12 13L20 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="password">Password</label>
+                        <div class="input-wrap">
+                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                                <path d="M8 10V7a4 4 0 1 1 8 0v3M12 14v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            </svg>
+                            <input class="password-input" type="password" id="password" name="password" placeholder="Create a password" autocomplete="new-password" minlength="6" required>
+                            <button class="password-toggle" type="button" id="password-toggle" aria-label="Show password" aria-pressed="false">
+                                <svg id="eye-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                                    <circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.8"/>
+                                </svg>
+                                <svg id="eye-off-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" hidden>
+                                    <path d="m3 3 18 18M10.6 6.2A10.8 10.8 0 0 1 12 6c6.1 0 9.5 6 9.5 6a16 16 0 0 1-3.1 3.7M6.2 6.8C3.8 8.3 2.5 12 2.5 12s3.4 6 9.5 6c1.2 0 2.3-.2 3.3-.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="login-button">
+                        <span id="signup-button-label">Sign up</span>
+                    </button>
+                </form>
+
+                <p id="signup-message" class="form-status" role="status" aria-live="polite">Passwords must contain at least 6 characters.</p>
+                <p class="signup-prompt">Already have an account? <a href="login.html">Sign in</a></p>
+                <p class="legal-note">Authorized Pathfinder users only.</p>
+            </div>
+        </section>
+    </main>
+
+    <script type="module" src="./auth-client.js"></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathfinder | Sign Up</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="font-loader.js"></script>
+</head>
+<body class="login-page">
+    <main class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <span class="logo-icon">T</span>
+                <h1>Pathfinder</h1>
+                <p>Asset Traceability System</p>
+            </div>
+
+            <h2>Create your account</h2>
+            <p class="login-description">
+                Sign up to get access to your Pathfinder dashboard.
+            </p>
+
+            <form id="signup-form">
+                <div class="form-group">
+                    <label for="name">Full name</label>
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        placeholder="Your name"
+                        autocomplete="name"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email address</label>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="you@example.com"
+                        autocomplete="email"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Create a password"
+                        autocomplete="new-password"
+                        minlength="6"
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="login-button">
+                    <span id="signup-button-label">Sign up</span>
+                </button>
+            </form>
+
+            <p id="signup-message" class="signup-message" role="status" aria-live="polite">
+                Passwords must contain at least 6 characters.
+            </p>
+
+            <p class="signup-prompt">
+                Already have an account? <a href="login.html">Sign in</a>
+            </p>
+        </div>
+    </main>
+
+    <script type="module" src="./auth-client.js"></script>
+</body>
+</html>

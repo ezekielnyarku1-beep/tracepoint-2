@@ -1,0 +1,613 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <title>Pathfinder | Sign in</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="font-loader.js"></script>
+    <style>
+        /* Theme tokens preserve the Pathfinder brand palette in both color schemes. */
+        :root {
+            color-scheme: light;
+            --page: #eef3f0;
+            --page-stripe: rgba(31, 122, 109, 0.045);
+            --card: #ffffff;
+            --text: #183432;
+            --muted: #53655f;
+            --border: #d8ddda;
+            --field: #fbfcfb;
+            --teal: #1f7a6d;
+            --teal-hover: #185f55;
+            --teal-contrast: #ffffff;
+            --accent-green: #087f75;
+            --error: #a12622;
+            --focus: #1f7a6d;
+            --shadow: 0 22px 60px rgba(16, 43, 43, 0.15);
+        }
+
+        /* Base layout and softly striped background. */
+        * {
+            box-sizing: border-box;
+        }
+
+        button,
+        input,
+        textarea,
+        select {
+            font: inherit;
+        }
+
+        body.login-page {
+            min-height: 100vh;
+            margin: 0;
+            padding: 28px 16px;
+            display: grid;
+            place-items: center;
+            color: var(--text);
+            background-color: var(--page);
+            background-image:
+                repeating-linear-gradient(
+                    135deg,
+                    transparent 0,
+                    transparent 24px,
+                    var(--page-stripe) 24px,
+                    var(--page-stripe) 26px
+                );
+            font-family: "Poppins", sans-serif;
+            line-height: 1.5;
+        }
+
+        /* Card entrance motion is opt-in for users who allow animation. */
+        @media (prefers-reduced-motion: no-preference) {
+            .login-card {
+                animation: card-enter 520ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+            }
+
+            @keyframes card-enter {
+                from {
+                    opacity: 0;
+                    transform: translateY(16px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        }
+
+        .login-card {
+            position: relative;
+            width: min(100%, 440px);
+            padding: clamp(28px, 7vw, 42px) clamp(22px, 7vw, 38px) 30px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: var(--card);
+            box-shadow: var(--shadow);
+        }
+
+        .login-card::before {
+            position: absolute;
+            inset: 0 0 auto;
+            height: 5px;
+            background: var(--accent-green);
+            content: "";
+        }
+
+        /* Brand block and responsive heading sizes. */
+        .brand {
+            margin-bottom: 32px;
+            text-align: center;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: inherit;
+        }
+
+        .brand-mark {
+            width: 60px;
+            height: 60px;
+            display: inline-grid;
+            place-items: center;
+            border-radius: 15px;
+            background: var(--accent-green);
+            color: #ffffff;
+            box-shadow: 0 6px 15px rgba(8, 127, 117, 0.25);
+            font-size: var(--fs-h1);
+            font-weight: 800;
+            transition: transform 240ms cubic-bezier(0.2, 0.75, 0.25, 1);
+        }
+
+        .brand-mark:hover {
+            transform: translateY(-3px);
+        }
+
+        .brand h1 {
+            margin: 13px 0 4px;
+            color: var(--text);
+            font-size: var(--fs-h1);
+            font-weight: 750;
+            letter-spacing: -0.8px;
+        }
+
+        .brand p {
+            margin: 0;
+            color: var(--muted);
+            font-size: var(--fs-label);
+            letter-spacing: 0.3px;
+        }
+
+        .login-card h2 {
+            margin: 0 0 8px;
+            color: var(--text);
+            font-size: var(--fs-h2);
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .intro {
+            margin: 0 0 25px;
+            color: var(--muted);
+            font-size: var(--fs-small);
+            line-height: 1.5;
+        }
+
+        /* Labels, icon inputs, and validation feedback. */
+        .field {
+            margin-bottom: 19px;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text);
+            font-size: var(--fs-label);
+            font-weight: 600;
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            top: 50%;
+            left: 14px;
+            width: 18px;
+            height: 18px;
+            color: var(--muted);
+            pointer-events: none;
+            transform: translateY(-50%);
+            transition: transform 200ms cubic-bezier(0.2, 0.75, 0.25, 1);
+        }
+
+        .input-wrap:focus-within .input-icon {
+            transform: translateY(calc(-50% - 2px));
+        }
+
+        .field input {
+            width: 100%;
+            min-height: 49px;
+            padding: 12px 14px 12px 43px;
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            outline: none;
+            background: var(--field);
+            color: var(--text);
+            font: inherit;
+            font-size: var(--fs-input);
+            transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+        }
+
+        .field input::placeholder {
+            color: var(--muted);
+            opacity: 0.78;
+        }
+
+        .field input:hover {
+            border-color: var(--teal);
+        }
+
+        .field input:focus {
+            border-color: var(--focus);
+            background: var(--card);
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 22%, transparent);
+        }
+
+        .field input[aria-invalid="true"] {
+            border-color: var(--error);
+        }
+
+        .field input[aria-invalid="true"]:focus {
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--error) 20%, transparent);
+        }
+
+        .password-input {
+            padding-right: 49px !important;
+        }
+
+        .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            padding: 0;
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+            transform: translateY(-50%);
+        }
+
+        .password-toggle:hover {
+            background: var(--page);
+            color: var(--text);
+        }
+
+        .password-toggle svg {
+            width: 19px;
+            height: 19px;
+            transition: transform 200ms cubic-bezier(0.2, 0.75, 0.25, 1);
+        }
+
+        .password-toggle:hover svg,
+        .password-toggle:focus-visible svg {
+            transform: translateY(-2px);
+        }
+
+        .field-error,
+        .caps-warning {
+            margin: 7px 0 0;
+            font-size: var(--fs-small);
+            line-height: 1.5;
+        }
+
+        .field-error {
+            color: var(--error);
+        }
+
+        .caps-warning {
+            color: var(--muted);
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        /* Remember-me option, recovery link, and primary action. */
+        .login-options {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin: 4px 0 23px;
+            font-size: var(--fs-small);
+        }
+
+        .remember-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        .remember-label input {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            accent-color: var(--teal);
+        }
+
+        a {
+            color: var(--teal);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        a:focus-visible,
+        input:focus-visible,
+        button:focus-visible {
+            outline: 3px solid var(--focus);
+            outline-offset: 3px;
+        }
+
+        .login-button {
+            width: 100%;
+            min-height: 50px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 13px 18px;
+            border: 0;
+            border-radius: 9px;
+            background: var(--teal);
+            color: var(--teal-contrast);
+            box-shadow: 0 5px 12px rgba(8, 70, 62, 0.18);
+            cursor: pointer;
+            font: inherit;
+            font-size: var(--fs-base);
+            font-weight: 700;
+            transition: background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+        }
+
+        .login-button:hover:not(:disabled) {
+            background: var(--teal-hover);
+            box-shadow: 0 8px 16px rgba(8, 70, 62, 0.22);
+            transform: translateY(-2px);
+        }
+
+        .login-button:active:not(:disabled) {
+            box-shadow: 0 3px 7px rgba(8, 70, 62, 0.16);
+            transform: translateY(1px);
+        }
+
+        .login-button:disabled {
+            cursor: wait;
+            opacity: 0.86;
+        }
+
+        .spinner {
+            width: 17px;
+            height: 17px;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spin 700ms linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Form-level live feedback and supporting links. */
+        .form-status {
+            min-height: 1.5em;
+            margin: 13px 0 0;
+            color: var(--error);
+            font-size: var(--fs-label);
+            line-height: 1.5;
+            text-align: center;
+        }
+
+        .login-footer {
+            margin: 19px 0 0;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: var(--fs-small);
+            line-height: 1.7;
+            text-align: center;
+        }
+
+        .signup-prompt {
+            margin: 15px 0 0;
+            color: var(--muted);
+            font-size: var(--fs-label);
+            text-align: center;
+        }
+
+        .brand h1 {
+            font-size: var(--fs-h1);
+            overflow-wrap: anywhere;
+        }
+
+        .brand p,
+        .intro,
+        .field label,
+        .field-error,
+        .caps-warning,
+        .login-options,
+        .form-status,
+        .login-footer,
+        .signup-prompt {
+            font-size: var(--fs-small);
+        }
+
+        .login-card h2 {
+            font-size: var(--fs-h2);
+            overflow-wrap: anywhere;
+        }
+
+        .field input,
+        .login-button,
+        .login-mode-option {
+            font-size: var(--fs-control);
+        }
+
+        @media (max-width: 600px) {
+            body.login-page {
+                min-height: 100vh;
+                padding: 12px;
+                line-height: 1.5;
+                overflow-x: clip;
+            }
+
+            .login-card {
+                width: 100%;
+                padding: 24px 16px 18px;
+                border-radius: 14px;
+            }
+
+            .brand {
+                margin-bottom: 20px;
+            }
+
+            .brand h1,
+            .login-card h2,
+            .intro {
+                max-width: 100%;
+                overflow-wrap: anywhere;
+            }
+
+            .field {
+                margin-bottom: 14px;
+            }
+
+            .field input {
+                width: 100%;
+                min-height: 44px;
+                font-size: var(--fs-input);
+            }
+
+            .password-toggle {
+                width: 44px;
+                height: 44px;
+                right: 4px;
+            }
+
+            .login-mode-option,
+            .login-button {
+                min-height: 44px;
+            }
+
+            .login-button {
+                width: 100%;
+            }
+
+            .login-options {
+                gap: 8px;
+                margin-bottom: 16px;
+            }
+        }
+
+        /* Respect reduced-motion preferences for transitions and the spinner. */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body class="login-page">
+    <main class="login-card">
+        <header class="brand">
+            <span class="brand-mark" aria-hidden="true">T</span>
+            <h1>Pathfinder</h1>
+            <p>Asset Traceability System</p>
+        </header>
+
+        <div class="login-mode-toggle" id="login-mode-toggle" role="radiogroup" aria-label="Sign-in type" data-mode="user">
+            <span class="login-mode-highlight" aria-hidden="true"></span>
+            <button class="login-mode-option" id="user-mode" type="button" role="radio" aria-checked="true" tabindex="0" data-mode="user">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M5 20c.7-3.3 3.1-5 7-5s6.3 1.7 7 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+                <span>User</span>
+            </button>
+            <button class="login-mode-option" id="admin-mode" type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="admin">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 3 5 6v5c0 4.6 2.9 8.2 7 10 4.1-1.8 7-5.4 7-10V6l-7-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Admin / Supervisor</span>
+            </button>
+        </div>
+        <h2 id="login-heading">Welcome back</h2>
+        <p class="intro">Sign in to access your dashboard.</p>
+
+        <form id="login-form" novalidate>
+            <div class="field">
+                <label for="email">Email address</label>
+                <div class="input-wrap">
+                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="you@example.com"
+                        autocomplete="email"
+                        autocapitalize="none"
+                        spellcheck="false"
+                        required
+                    >
+                </div>
+                <p class="field-error" id="email-error" hidden></p>
+            </div>
+
+            <div class="field">
+                <label for="password">Password</label>
+                <div class="input-wrap">
+                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M8 10V7a4 4 0 1 1 8 0v3M12 14v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <input
+                        class="password-input"
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                        aria-describedby="caps-warning"
+                        required
+                    >
+                    <button
+                        class="password-toggle"
+                        type="button"
+                        id="password-toggle"
+                        aria-label="Show password"
+                        aria-pressed="false"
+                    >
+                        <svg id="eye-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                            <circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.8"/>
+                        </svg>
+                        <svg id="eye-off-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" hidden>
+                            <path d="m3 3 18 18M10.6 6.2A10.8 10.8 0 0 1 12 6c6.1 0 9.5 6 9.5 6a16 16 0 0 1-3.1 3.7M6.2 6.8C3.8 8.3 2.5 12 2.5 12s3.4 6 9.5 6c1.2 0 2.3-.2 3.3-.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <p class="field-error" id="password-error" hidden></p>
+                <p class="caps-warning" id="caps-warning" aria-live="polite" hidden>Caps Lock is on.</p>
+            </div>
+
+            <div class="login-options">
+                <label class="remember-label" for="remember">
+                    <input type="checkbox" id="remember" name="remember">
+                    Remember me
+                </label>
+                <a href="forgot-password.html">Forgot password?</a>
+            </div>
+
+            <button class="login-button" id="submit-button" type="submit">
+                <span id="button-label">Sign in</span>
+                <span class="spinner" id="button-spinner" aria-hidden="true" hidden></span>
+            </button>
+            <p class="form-status" id="login-status" role="status" aria-live="polite"></p>
+        </form>
+
+        <p class="login-footer">Protected access for authorized Pathfinder users.</p>
+        <p class="signup-prompt" id="signup-prompt">Don&rsquo;t have an account? <a href="signup.html">Sign up</a></p>
+    </main>
+
+    <script type="module" src="./auth-client.js"></script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+rules_version = '2';
+
+service cloud.firestore {
+    match /databases/{database}/documents {
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        function role() {
+            return get(
+                /databases/$(database)/documents/users/$(request.auth.uid)
+            ).data.role;
+        }
+
+        function isRole(expectedRole) {
+            return isSignedIn() && role() == expectedRole;
+        }
+
+        function validRole(value) {
+            return value is string
+                && value in ['technician', 'supervisor', 'administrator'];
+        }
+
+        match /users/{uid} {
+            // Any authenticated user may read user profiles for the users list.
+            allow read: if isSignedIn();
+
+            // Users may create only their own technician profile with a server timestamp.
+            allow create: if isSignedIn()
+                && request.auth.uid == uid
+                && request.resource.data.keys().hasAll([
+                    'email',
+                    'displayName',
+                    'role',
+                    'createdAt'
+                ])
+                && request.resource.data.keys().hasOnly([
+                    'email',
+                    'displayName',
+                    'role',
+                    'createdAt'
+                ])
+                && request.resource.data.email is string
+                && request.resource.data.displayName is string
+                && request.resource.data.role == 'technician'
+                && request.resource.data.createdAt is timestamp
+                && request.resource.data.createdAt == request.time;
+
+            // Administrators may change another user's valid role and update timestamp only.
+            allow update: if isRole('administrator')
+                && request.auth.uid != uid
+                && request.resource.data.diff(resource.data)
+                    .affectedKeys().hasOnly(['role', 'updatedAt'])
+                && request.resource.data.diff(resource.data)
+                    .affectedKeys().hasAll(['role', 'updatedAt'])
+                && validRole(request.resource.data.role)
+                && request.resource.data.role != resource.data.role
+                && request.resource.data.updatedAt is timestamp
+                && request.resource.data.updatedAt == request.time;
+
+            // User profiles cannot be deleted by clients.
+            allow delete: if false;
+        }
+
+        match /auditLogs/{docId} {
+            // Only supervisors and administrators may read audit entries.
+            allow read: if isRole('supervisor') || isRole('administrator');
+
+            // Signed-in users may create well-formed immutable audit entries.
+            allow create: if isSignedIn()
+                && request.resource.data.keys().hasAll([
+                    'action',
+                    'entityType',
+                    'entityId',
+                    'performedBy',
+                    'createdAt'
+                ])
+                && request.resource.data.keys().hasOnly([
+                    'action',
+                    'entityType',
+                    'entityId',
+                    'performedBy',
+                    'createdAt',
+                    'oldRole',
+                    'newRole',
+                    'role',
+                    'summary',
+                    'eventType',
+                    'performedByEmail'
+                ])
+                && request.resource.data.action is string
+                && request.resource.data.entityType is string
+                && request.resource.data.entityId is string
+                && request.resource.data.performedBy is string
+                && request.resource.data.performedBy == request.auth.uid
+                && request.resource.data.createdAt is timestamp
+                && request.resource.data.createdAt == request.time
+                && (!('oldRole' in request.resource.data)
+                    || request.resource.data.oldRole is string)
+                && (!('newRole' in request.resource.data)
+                    || request.resource.data.newRole is string)
+                && (!('role' in request.resource.data)
+                    || request.resource.data.role is string)
+                && (!('summary' in request.resource.data)
+                    || request.resource.data.summary is string)
+                && (!('eventType' in request.resource.data)
+                    || request.resource.data.eventType is string)
+                && (!('performedByEmail' in request.resource.data)
+                    || request.resource.data.performedByEmail is string)
+                && (
+                    request.resource.data.action != 'user_role_changed'
+                    || (
+                        request.resource.data.entityType == 'user'
+                        && request.resource.data.keys().hasAll([
+                            'oldRole',
+                            'newRole'
+                        ])
+                        && validRole(request.resource.data.oldRole)
+                        && validRole(request.resource.data.newRole)
+                        && request.resource.data.oldRole != request.resource.data.newRole
+                    )
+                );
+
+            // Audit entries cannot be updated.
+            allow update: if false;
+
+            // Audit entries cannot be deleted.
+            allow delete: if false;
+        }
+    }
+}

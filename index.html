@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathfinder | Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="stylesheet" href=".vscode/style.css">
+    <script defer src=".vscode/font-loader.js"></script>
+    <script defer src=".vscode/app-shell.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Pathfinder</h1>
+        <p>Asset Traceability</p>
+    </header>
+
+    <nav aria-label="Main navigation">
+        <ul>
+            <li><a href="index.html" aria-current="page">Dashboard</a></li>
+            <li><a href="kiosks.html">Kiosks</a></li>
+            <li><a href="components.html">Components</a></li>
+            <li><a href="log-event.html">Log an Event</a></li>
+            <li><a href="fault-history.html">Fault History</a></li>
+            <li><a href="alerts.html">Alerts</a></li>
+            <li><a href="reports.html">Reports</a></li>
+            <li><a href="users.html">Users</a></li>
+            <li><a href="audit-log.html">Audit Log</a></li>
+            <li><a href="account.html">My account</a></li>
+        </ul>
+        <a class="nav-signout" href="signout.html">Sign out</a>
+    </nav>
+
+    <main class="dashboard-main" data-page="dashboard">
+        <div class="dashboard-heading">
+            <h2>Dashboard</h2>
+            <p>Welcome to Pathfinder. Monitor your assets and equipment.</p>
+        </div>
+
+        <section>
+            <h3>Overview</h3>
+            <div class="dashboard-stats">
+                <div class="dashboard-stat">
+                    <span>Total Kiosks</span>
+                    <strong>0</strong>
+                </div>
+                <div class="dashboard-stat">
+                    <span>Total Components</span>
+                    <strong>0</strong>
+                </div>
+                <div class="dashboard-stat">
+                    <span>Active Alerts</span>
+                    <strong>0</strong>
+                </div>
+                <div class="dashboard-stat">
+                    <span>Reported Faults</span>
+                    <strong>0</strong>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h3>Recent Activity</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Event</th>
+                        <th scope="col">Asset</th>
+                        <th scope="col">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="3">No recent activity yet.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+    <script type="module" src=".vscode/auth-client.js"></script>
+    <script type="module" src=".vscode/data-page-client.js"></script>
+</body>
+</html>

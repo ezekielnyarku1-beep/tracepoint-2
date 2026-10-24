@@ -14,14 +14,76 @@ import {
     verifyPasswordResetCode,
     confirmPasswordReset
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+import {
+    doc,
+    getDoc,
+    serverTimestamp,
+    Timestamp,
+    updateDoc
+} from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { auth } from "./firebase-auth-client.js";
 import { db } from "./firebase-client.js";
-const themePreferenceKey = "tracepoint-theme";
 let accountCreationInProgress = false;
 let adminLoginInProgress = false;
 let offlineSyncContext = null;
 let authStateSequence = 0;
+let presenceHeartbeat = null;
+let presenceVisibilityHandler = null;
+
+async function recordLastSignIn(user, profile) {
+    const lastSignIn = user.metadata.lastSignInTime
+        ? new Date(user.metadata.lastSignInTime)
+        : null;
+    if (!lastSignIn || Number.isNaN(lastSignIn.getTime())) return;
+
+    const savedLastSignIn = profile.lastSignInAt?.toDate?.();
+    if (savedLastSignIn?.getTime() === lastSignIn.getTime()) return;
+
+    await updateDoc(doc(db, "users", user.uid), {
+        lastSignInAt: Timestamp.fromDate(lastSignIn)
+    });
+    profile.lastSignInAt = Timestamp.fromDate(lastSignIn);
+}
+
+function stopPresenceHeartbeat() {
+    if (presenceHeartbeat) window.clearInterval(presenceHeartbeat);
+    presenceHeartbeat = null;
+    if (presenceVisibilityHandler) {
+        document.removeEventListener("visibilitychange", presenceVisibilityHandler);
+        presenceVisibilityHandler = null;
+    }
+}
+
+function startPresenceHeartbeat(user) {
+    stopPresenceHeartbeat();
+    let writeInProgress = false;
+    const updatePresence = async () => {
+        if (
+            writeInProgress ||
+            !navigator.onLine ||
+            document.visibilityState === "hidden" ||
+            auth.currentUser?.uid !== user.uid
+        ) return;
+
+        writeInProgress = true;
+        try {
+            await updateDoc(doc(db, "users", user.uid), {
+                lastActiveAt: serverTimestamp()
+            });
+        } catch (error) {
+            console.error("Could not update the user's active status.", error);
+        } finally {
+            writeInProgress = false;
+        }
+    };
+
+    presenceVisibilityHandler = () => {
+        if (document.visibilityState === "visible") updatePresence();
+    };
+    document.addEventListener("visibilitychange", presenceVisibilityHandler);
+    updatePresence();
+    presenceHeartbeat = window.setInterval(updatePresence, 60_000);
+}
 
 function friendlyAuthError(error) {
     switch (error.code) {
@@ -73,6 +135,7 @@ function setupLoginPage() {
     const passwordError = document.getElementById("password-error");
     const capsWarning = document.getElementById("caps-warning");
     const status = document.getElementById("login-status");
+    const offlineMessage = "You appear to be offline. Your email is still here; reconnect and try signing in again.";
     const submit = document.getElementById("submit-button");
     const label = document.getElementById("button-label");
     const spinner = document.getElementById("button-spinner");
@@ -97,7 +160,7 @@ function setupLoginPage() {
         });
         if (loginHeading) loginHeading.textContent = isAdminMode ? "Admin sign-in" : "Welcome back";
         if (signupPrompt) signupPrompt.hidden = isAdminMode;
-        status.textContent = "";
+        status.textContent = navigator.onLine ? "" : offlineMessage;
     }
 
     if (modeToggle && !isAdminLoginPage) {
@@ -118,6 +181,16 @@ function setupLoginPage() {
             });
         });
     }
+
+    window.addEventListener("offline", () => {
+        status.textContent = offlineMessage;
+    });
+    window.addEventListener("online", () => {
+        if (status.textContent === offlineMessage) {
+            status.textContent = "Connection restored. You can try signing in again.";
+        }
+    });
+    if (!navigator.onLine) status.textContent = offlineMessage;
 
     function validateEmail() {
         const message = !email.value.trim()
@@ -143,12 +216,12 @@ function setupLoginPage() {
 
     email.addEventListener("blur", validateEmail);
     email.addEventListener("input", () => {
-        status.textContent = "";
+        if (navigator.onLine) status.textContent = "";
         if (email.getAttribute("aria-invalid") === "true") validateEmail();
     });
     password.addEventListener("blur", validatePassword);
     password.addEventListener("input", () => {
-        status.textContent = "";
+        if (navigator.onLine) status.textContent = "";
         if (password.getAttribute("aria-invalid") === "true") validatePassword();
     });
 
@@ -157,8 +230,7 @@ function setupLoginPage() {
         password.type = showPassword ? "text" : "password";
         toggle.setAttribute("aria-pressed", String(showPassword));
         toggle.setAttribute("aria-label", showPassword ? "Hide password" : "Show password");
-        document.getElementById("eye-icon").hidden = showPassword;
-        document.getElementById("eye-off-icon").hidden = !showPassword;
+        toggle.textContent = showPassword ? "Hide" : "Show";
         password.focus();
     });
 
@@ -179,6 +251,10 @@ function setupLoginPage() {
         event.preventDefault();
         status.textContent = "";
         if (!validateEmail() || !validatePassword()) return;
+        if (!navigator.onLine) {
+            status.textContent = offlineMessage;
+            return;
+        }
 
         submit.disabled = true;
         if (spinner) spinner.hidden = false;
@@ -186,7 +262,7 @@ function setupLoginPage() {
         try {
             await setPersistence(
                 auth,
-                document.getElementById("remember").checked
+                document.getElementById("remember")?.checked
                     ? browserLocalPersistence
                     : browserSessionPersistence
             );
@@ -202,7 +278,9 @@ function setupLoginPage() {
             }
         } catch (error) {
             delete form.dataset.pendingLoginMode;
-            status.textContent = friendlyAuthError(error);
+            status.textContent = !navigator.onLine
+                ? offlineMessage
+                : friendlyAuthError(error);
         } finally {
             adminLoginInProgress = false;
             submit.disabled = false;
@@ -249,7 +327,7 @@ function setupSignupPage() {
         } finally {
             accountCreationInProgress = false;
             button.disabled = false;
-            label.textContent = "Sign up";
+            label.textContent = "Create account";
         }
     });
 }
@@ -346,33 +424,6 @@ function setupResetPasswordPage() {
     });
 }
 
-function enableThemeSwitch() {
-    const navigation = document.querySelector("nav");
-    if (!navigation || document.querySelector(".nav-theme")) return;
-
-    const initialTheme = localStorage.getItem(themePreferenceKey) === "dark" ? "dark" : "light";
-    document.body.dataset.theme = initialTheme;
-    const themeButton = document.createElement("button");
-    themeButton.className = "nav-theme";
-    themeButton.type = "button";
-    themeButton.textContent = "</>";
-
-    const updateLabel = () => {
-        const isDark = document.body.dataset.theme === "dark";
-        themeButton.setAttribute("aria-label", `Switch to ${isDark ? "light" : "dark"} mode`);
-        themeButton.title = `Switch to ${isDark ? "light" : "dark"} mode`;
-        themeButton.setAttribute("aria-pressed", String(isDark));
-    };
-    updateLabel();
-    themeButton.addEventListener("click", () => {
-        const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
-        document.body.dataset.theme = nextTheme;
-        localStorage.setItem(themePreferenceKey, nextTheme);
-        updateLabel();
-    });
-    document.body.append(themeButton);
-}
-
 function setupAccountPage() {
     const form = document.getElementById("account-form");
     if (!form) return;
@@ -441,6 +492,7 @@ function setupAccountPage() {
         submit.disabled = true;
         submit.textContent = "Saving...";
         let passwordUpdated = false;
+        let nameUpdated = false;
 
         try {
             if (hasPasswordChange) {
@@ -453,9 +505,14 @@ function setupAccountPage() {
                 passwordUpdated = true;
             }
 
-            const nameUpdated = name !== (user.displayName || "");
-            if (nameUpdated) {
+            const nameChanged = name !== (user.displayName || "");
+            if (nameChanged) {
                 await updateProfile(user, { displayName: name });
+                nameUpdated = true;
+                await updateDoc(doc(db, "users", user.uid), {
+                    displayName: name,
+                    updatedAt: serverTimestamp()
+                });
             }
 
             currentPassword.value = "";
@@ -464,7 +521,7 @@ function setupAccountPage() {
             setStatus(
                 passwordUpdated
                     ? "Your account details and password have been updated."
-                    : nameUpdated
+                    : nameChanged
                         ? "Your account details have been updated."
                         : "Your account settings are already up to date.",
                 "success"
@@ -473,10 +530,13 @@ function setupAccountPage() {
             const message = error.code === "auth/invalid-credential"
                 ? "Your current password is incorrect."
                 : friendlyAuthError(error);
+            const profileSyncMessage = nameUpdated
+                ? `Your display name was updated in Authentication, but the application profile could not be synchronized. ${message}`
+                : message;
             setStatus(
                 passwordUpdated
-                    ? `Your password was updated, but the profile could not be saved. ${message}`
-                    : message
+                    ? `Your password was updated, but the remaining account changes could not be saved. ${profileSyncMessage}`
+                    : profileSyncMessage
             );
         } finally {
             submit.disabled = false;
@@ -515,7 +575,12 @@ async function handleAuthState(user) {
     if (user && isSignupPage) {
         try {
             const { ensureUserProfile } = await import("./data-service.js");
-            await ensureUserProfile(user);
+            const profile = await ensureUserProfile(user);
+            try {
+                await recordLastSignIn(user, profile);
+            } catch (error) {
+                console.error("Could not record the user's last sign-in.", error);
+            }
         } catch (error) {
             document.getElementById("signup-message").textContent =
                 `Your account was created, but profile setup failed. ${friendlyAuthError(error)}`;
@@ -549,6 +614,11 @@ async function handleAuthState(user) {
             const { ensureUserProfile } = await import("./data-service.js");
             const profile = await ensureUserProfile(user);
             if (sequence !== authStateSequence || auth.currentUser?.uid !== user.uid) return;
+            try {
+                await recordLastSignIn(user, profile);
+            } catch (error) {
+                console.error("Could not record the user's last sign-in.", error);
+            }
             if (
                 requiresAdminMode() &&
                 !["supervisor", "administrator"].includes(profile.role)
@@ -571,6 +641,7 @@ async function handleAuthState(user) {
         return;
     }
     if (!user && isProtectedPage) {
+        stopPresenceHeartbeat();
         offlineSyncContext = null;
         window.pathfinderProfileError = null;
         window.pathfinderAuthError = null;
@@ -580,6 +651,7 @@ async function handleAuthState(user) {
         return;
     }
     if (!user) {
+        stopPresenceHeartbeat();
         offlineSyncContext = null;
         window.pathfinderProfileError = null;
         window.pathfinderAuthError = null;
@@ -588,8 +660,7 @@ async function handleAuthState(user) {
         return;
     }
 
-    enableThemeSwitch();
-    const protectedPage = document.querySelector("main[data-page], #event-form");
+    const protectedPage = document.querySelector("nav") ? document.querySelector("main") : null;
     if (protectedPage) {
         let profile;
         let syncOfflineActions;
@@ -610,15 +681,49 @@ async function handleAuthState(user) {
             return;
         }
         if (sequence !== authStateSequence || auth.currentUser?.uid !== user.uid) return;
+        try {
+            await recordLastSignIn(user, profile);
+        } catch (error) {
+            console.error("Could not record the user's last sign-in.", error);
+        }
+        if (sequence !== authStateSequence || auth.currentUser?.uid !== user.uid) return;
+
+        const currentFile = window.location.pathname.split("/").pop().toLowerCase();
+        const { APP_PAGES, hasPageAccess } = await import("./page-config.js");
+        const currentPage = APP_PAGES.find((page) => page.fileName.toLowerCase() === currentFile);
+        let deniedDashboard = false;
+        if (!currentPage || !hasPageAccess(profile, currentPage.key)) {
+            if (currentPage?.key !== "dashboard") {
+                window.location.replace(resolveAppPath("index.html"));
+                return;
+            }
+            deniedDashboard = true;
+            protectedPage.dataset.page = "access-denied";
+            protectedPage.innerHTML = `
+                <h2>Access denied</h2>
+                <p>Your account does not have access to the Dashboard. Use the sidebar to open an allowed page or ask an administrator to update your access.</p>
+            `;
+        }
+        if (!deniedDashboard) startPresenceHeartbeat(user);
 
         window.pathfinderProfileError = null;
         window.pathfinderAuthError = null;
-        offlineSyncContext = { user, profile, syncOfflineActions };
+        const needsOfflineSync = !deniedDashboard &&
+            Boolean(document.querySelector("main[data-page], #event-form"));
+        offlineSyncContext = needsOfflineSync ? { user, profile, syncOfflineActions } : null;
         document.body.dataset.userRole = profile.role;
         window.pathfinderProfile = { user, profile };
         document.dispatchEvent(new CustomEvent("pathfinder:profile-ready", {
             detail: { user, profile }
         }));
+
+        if (!needsOfflineSync) {
+            const email = document.getElementById("account-email");
+            if (email) email.textContent = user.email || "";
+            const nameInput = document.getElementById("display-name");
+            if (nameInput) nameInput.value = user.displayName || "";
+            return;
+        }
 
         try {
             const syncResult = await syncOfflineActions(user, profile);
@@ -641,6 +746,7 @@ async function handleAuthState(user) {
 function resolveAppPath(targetPage) {
     const path = window.location.pathname || "";
     const isInsideDotVscode = path.includes("/.vscode/") || path.endsWith("/.vscode");
+    if (isInsideDotVscode && targetPage === "index.html") return "../index.html";
     return isInsideDotVscode ? targetPage : `./${targetPage}`;
 }
 

@@ -29,7 +29,8 @@ does not validate the PostgreSQL API.
 
 Staff can sign in from this page. Supervisors and administrators can also use
 `/.vscode/admin-login.html`; it verifies the Firestore role before opening the
-dashboard. New self-registered profiles always receive the `technician` role.
+dashboard. Both sign-in paths open the data-backed dashboard at `/index.html`.
+New self-registered profiles always receive the `technician` role.
 
 ## Enable Firebase sign-in
 
@@ -135,6 +136,11 @@ Supervisors can review audit and conflict history and resolve faults.
 Administrators can also register/configure kiosks and manage user roles.
 Firestore rules enforce these permissions; hiding a button in the browser is
 not the security boundary.
+
+Users may read their own profile; only administrators may list or read other
+profiles. Audit entries are append-only and must be committed atomically with
+the application change they describe. Run `npm run test:rules` to validate the
+Firestore rules against the local emulator.
 
 ## Offline behavior
 

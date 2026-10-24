@@ -1,12 +1,12 @@
 (function () {
   'use strict';
-  if (window.__pfNav) return;          // never run twice
+  if (window.__pfNav) return;           
   window.__pfNav = true;
 
   var onAccountPage = /account\.html$/i.test(location.pathname);
   var mq = window.matchMedia('(max-width: 900px)');
 
-  // Sign out only on the account page
+   
   function removeSignOut() {
     if (onAccountPage) return;
     document.querySelectorAll('a, button').forEach(function (el) {
@@ -14,7 +14,7 @@
     });
   }
 
-  // Hide any old hamburger in the top-left on phones
+   
   function hideOld() {
     if (!mq.matches) return;
     document.querySelectorAll('button').forEach(function (b) {

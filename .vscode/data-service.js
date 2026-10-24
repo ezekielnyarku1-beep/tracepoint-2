@@ -14,9 +14,25 @@ import {
     where
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { db } from "./firebase-client.js";
+import { GRANTABLE_PAGES, roleDefaultPermissions } from "./page-config.js";
 
 export const PAGE_SIZE = 50;
 export const ROLES = ["technician", "supervisor", "administrator"];
+
+export function normalizedPermissions(permissions) {
+    if (!permissions || typeof permissions !== "object" || Array.isArray(permissions)) {
+        throw new Error("The permissions value must be a page access map.");
+    }
+    const keys = Object.keys(permissions);
+    if (
+        keys.length !== GRANTABLE_PAGES.length ||
+        GRANTABLE_PAGES.some((page) => typeof permissions[page.key] !== "boolean") ||
+        keys.some((key) => !GRANTABLE_PAGES.some((page) => page.key === key))
+    ) {
+        throw new Error("Choose an on/off value for every managed page.");
+    }
+    return Object.fromEntries(GRANTABLE_PAGES.map((page) => [page.key, permissions[page.key]]));
+}
 
 export function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -69,6 +85,7 @@ export async function ensureUserProfile(user) {
                 email: user.email || "",
                 displayName: user.displayName || "",
                 role: "technician",
+                permissions: roleDefaultPermissions("technician"),
                 createdAt: serverTimestamp()
             };
             transaction.set(userRef, profile);
@@ -239,6 +256,7 @@ async function writeConflict({ componentId, sourceKioskId, destinationKioskId, u
             action: "assignment_conflict",
             entityType: "component",
             entityId: componentId,
+            conflictId: conflictRef.id,
             summary: error.message,
             performedBy: user.uid,
             performedByEmail: user.email || "",
@@ -634,7 +652,11 @@ export async function updateUserRole(uid, role, profile, currentUserId) {
         }
         if (oldRole === role) return false;
 
-        transaction.update(userRef, { role, lastAuditId: auditRef.id });
+        transaction.update(userRef, {
+            role,
+            updatedAt: serverTimestamp(),
+            lastAuditId: auditRef.id
+        });
         transaction.set(auditRef, {
             action: "user_role_changed",
             entityType: "user",
@@ -646,6 +668,60 @@ export async function updateUserRole(uid, role, profile, currentUserId) {
             performedBy: currentUserId,
             performedByEmail: profile.email || "",
             createdAt: serverTimestamp()
+        });
+        return true;
+    });
+    return changed;
+}
+
+export async function updateUserPermissions(uid, permissions, profile, currentUserId) {
+    requireRole(profile, ["administrator"]);
+    if (uid === currentUserId) throw new Error("You cannot change your own page access.");
+    const nextPermissions = normalizedPermissions(permissions);
+    const userRef = doc(db, "users", uid);
+    const changed = await runTransaction(db, async (transaction) => {
+        const userSnapshot = await transaction.get(userRef);
+        if (!userSnapshot.exists()) throw new Error("The selected user profile was not found.");
+        const userData = userSnapshot.data();
+        if (!ROLES.includes(userData.role)) {
+            throw new Error("The selected user profile has an invalid role and cannot be changed.");
+        }
+        if (userData.role === "administrator") {
+            throw new Error("Administrator access is always enabled and cannot be changed here.");
+        }
+
+        const previousPermissions = roleDefaultPermissions(userData.role);
+        for (const page of GRANTABLE_PAGES) {
+            if (typeof userData.permissions?.[page.key] === "boolean") {
+                previousPermissions[page.key] = userData.permissions[page.key];
+            }
+        }
+        const changedPages = GRANTABLE_PAGES.filter(
+            (page) => previousPermissions[page.key] !== nextPermissions[page.key]
+        );
+        if (!changedPages.length) return false;
+
+        const auditRefs = changedPages.map(() => documentRef("auditLogs"));
+        transaction.update(userRef, {
+            permissions: nextPermissions,
+            updatedAt: serverTimestamp(),
+            lastAuditId: auditRefs[auditRefs.length - 1].id
+        });
+        changedPages.forEach((page, index) => {
+            const oldValue = previousPermissions[page.key];
+            const newValue = nextPermissions[page.key];
+            transaction.set(auditRefs[index], {
+                action: "user_permission_changed",
+                entityType: "user",
+                entityId: uid,
+                pageKey: page.key,
+                oldValue,
+                newValue,
+                summary: `${page.label} access changed from ${oldValue ? "on" : "off"} to ${newValue ? "on" : "off"}.`,
+                performedBy: currentUserId,
+                performedByEmail: profile.email || "",
+                createdAt: serverTimestamp()
+            });
         });
         return true;
     });

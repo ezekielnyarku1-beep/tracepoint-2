@@ -6,14 +6,26 @@ service cloud.firestore {
             return request.auth != null;
         }
 
+        function userProfilePath(uid) {
+            return /databases/$(database)/documents/users/$(uid);
+        }
+
         function role() {
-            return get(
-                /databases/$(database)/documents/users/$(request.auth.uid)
-            ).data.role;
+            return get(userProfilePath(request.auth.uid)).data.role;
         }
 
         function isRole(expectedRole) {
             return isSignedIn() && role() == expectedRole;
+        }
+
+        function isStaff() {
+            return isRole('technician')
+                || isRole('supervisor')
+                || isRole('administrator');
+        }
+
+        function isSupervisorOrAdmin() {
+            return isRole('supervisor') || isRole('administrator');
         }
 
         function validRole(value) {
@@ -21,53 +33,86 @@ service cloud.firestore {
                 && value in ['technician', 'supervisor', 'administrator'];
         }
 
-        match /users/{uid} {
-            // Any authenticated user may read user profiles for the users list.
-            allow read: if isSignedIn();
-
-            // Users may create only their own technician profile with a server timestamp.
-            allow create: if isSignedIn()
-                && request.auth.uid == uid
-                && request.resource.data.keys().hasAll([
-                    'email',
-                    'displayName',
-                    'role',
-                    'createdAt'
+        function validPermissions(value) {
+            return value is map
+                && value.keys().hasAll([
+                    'dashboard',
+                    'kiosks',
+                    'components',
+                    'log-event',
+                    'fault-history',
+                    'alerts',
+                    'reports',
+                    'users',
+                    'audit-log'
                 ])
-                && request.resource.data.keys().hasOnly([
-                    'email',
-                    'displayName',
-                    'role',
-                    'createdAt'
+                && value.keys().hasOnly([
+                    'dashboard',
+                    'kiosks',
+                    'components',
+                    'log-event',
+                    'fault-history',
+                    'alerts',
+                    'reports',
+                    'users',
+                    'audit-log'
                 ])
-                && request.resource.data.email is string
-                && request.resource.data.displayName is string
-                && request.resource.data.role == 'technician'
-                && request.resource.data.createdAt is timestamp
-                && request.resource.data.createdAt == request.time;
-
-            // Administrators may change another user's valid role and update timestamp only.
-            allow update: if isRole('administrator')
-                && request.auth.uid != uid
-                && request.resource.data.diff(resource.data)
-                    .affectedKeys().hasOnly(['role', 'updatedAt'])
-                && request.resource.data.diff(resource.data)
-                    .affectedKeys().hasAll(['role', 'updatedAt'])
-                && validRole(request.resource.data.role)
-                && request.resource.data.role != resource.data.role
-                && request.resource.data.updatedAt is timestamp
-                && request.resource.data.updatedAt == request.time;
-
-            // User profiles cannot be deleted by clients.
-            allow delete: if false;
+                && value.dashboard is bool
+                && value.kiosks is bool
+                && value.components is bool
+                && value['log-event'] is bool
+                && value['fault-history'] is bool
+                && value.alerts is bool
+                && value.reports is bool
+                && value.users is bool
+                && value['audit-log'] is bool;
         }
 
-        match /auditLogs/{docId} {
-            // Only supervisors and administrators may read audit entries.
-            allow read: if isRole('supervisor') || isRole('administrator');
+        function defaultTechnicianPermissions() {
+            return {
+                'dashboard': true,
+                'kiosks': true,
+                'components': true,
+                'log-event': true,
+                'fault-history': true,
+                'alerts': true,
+                'reports': true,
+                'users': false,
+                'audit-log': false
+            };
+        }
 
-            // Signed-in users may create well-formed immutable audit entries.
-            allow create: if isSignedIn()
+        function auditPath(auditId) {
+            return /databases/$(database)/documents/auditLogs/$(auditId);
+        }
+
+        function componentPath(componentId) {
+            return /databases/$(database)/documents/components/$(componentId);
+        }
+
+        function eventPath(eventId) {
+            return /databases/$(database)/documents/events/$(eventId);
+        }
+
+        function faultPath(faultId) {
+            return /databases/$(database)/documents/faults/$(faultId);
+        }
+
+        function kioskPath(kioskId) {
+            return /databases/$(database)/documents/kiosks/$(kioskId);
+        }
+
+        function isActiveKiosk(kioskId) {
+            return exists(kioskPath(kioskId))
+                && get(kioskPath(kioskId)).data.status == 'active';
+        }
+
+        function conflictPath(conflictId) {
+            return /databases/$(database)/documents/conflicts/$(conflictId);
+        }
+
+        function validAuditBase() {
+            return isSignedIn()
                 && request.resource.data.keys().hasAll([
                     'action',
                     'entityType',
@@ -86,46 +131,582 @@ service cloud.firestore {
                     'role',
                     'summary',
                     'eventType',
-                    'performedByEmail'
+                    'performedByEmail',
+                    'pageKey',
+                    'oldValue',
+                    'newValue',
+                    'eventId',
+                    'faultId',
+                    'conflictId'
                 ])
                 && request.resource.data.action is string
                 && request.resource.data.entityType is string
                 && request.resource.data.entityId is string
-                && request.resource.data.performedBy is string
                 && request.resource.data.performedBy == request.auth.uid
                 && request.resource.data.createdAt is timestamp
                 && request.resource.data.createdAt == request.time
-                && (!('oldRole' in request.resource.data)
-                    || request.resource.data.oldRole is string)
-                && (!('newRole' in request.resource.data)
-                    || request.resource.data.newRole is string)
-                && (!('role' in request.resource.data)
-                    || request.resource.data.role is string)
-                && (!('summary' in request.resource.data)
-                    || request.resource.data.summary is string)
-                && (!('eventType' in request.resource.data)
-                    || request.resource.data.eventType is string)
                 && (!('performedByEmail' in request.resource.data)
                     || request.resource.data.performedByEmail is string)
+                && (!('summary' in request.resource.data)
+                    || request.resource.data.summary is string);
+        }
+
+        function auditMatches(action, entityType, entityId) {
+            return request.resource.data.action == action
+                && request.resource.data.entityType == entityType
+                && request.resource.data.entityId == entityId;
+        }
+
+        function validComponentAudit(auditId) {
+            return (
+                    auditMatches('component_registered', 'component', request.resource.data.entityId)
+                    && isStaff()
+                    && getAfter(componentPath(request.resource.data.entityId)).data.lastAuditId == auditId
+                    && getAfter(/databases/$(database)/documents/componentSerials/$(getAfter(componentPath(request.resource.data.entityId)).data.serialNumber)).data.componentId == request.resource.data.entityId
+                )
+                || (
+                    auditMatches('component_updated', 'component', request.resource.data.entityId)
+                    && isRole('administrator')
+                    && getAfter(componentPath(request.resource.data.entityId)).data.lastAuditId == auditId
+                );
+        }
+
+        function validKioskAudit(auditId) {
+            return (
+                    auditMatches('kiosk_registered', 'kiosk', request.resource.data.entityId)
+                    && isRole('administrator')
+                    && getAfter(kioskPath(request.resource.data.entityId)).data.lastAuditId == auditId
+                )
+                || (
+                    auditMatches('kiosk_updated', 'kiosk', request.resource.data.entityId)
+                    && isRole('administrator')
+                    && getAfter(kioskPath(request.resource.data.entityId)).data.lastAuditId == auditId
+                );
+        }
+
+        function validEventAudit(auditId) {
+            return auditMatches('component_event', 'component', request.resource.data.entityId)
+                && isStaff()
+                && request.resource.data.eventId is string
+                && getAfter(eventPath(request.resource.data.eventId)).data.auditId == auditId
+                && getAfter(eventPath(request.resource.data.eventId)).data.componentId == request.resource.data.entityId
+                && getAfter(eventPath(request.resource.data.eventId)).data.eventType == request.resource.data.eventType;
+        }
+
+        function validFaultAudit(auditId) {
+            return (
+                    auditMatches('fault_reported', request.resource.data.entityType, request.resource.data.entityId)
+                    && isStaff()
+                    && request.resource.data.eventId is string
+                    && request.resource.data.faultId is string
+                    && getAfter(faultPath(request.resource.data.faultId)).data.lastAuditId == auditId
+                    && getAfter(faultPath(request.resource.data.faultId)).data.lastEventId == request.resource.data.eventId
+                    && getAfter(faultPath(request.resource.data.faultId)).data.targetType == request.resource.data.entityType
+                    && getAfter(faultPath(request.resource.data.faultId)).data.targetId == request.resource.data.entityId
+                    && getAfter(eventPath(request.resource.data.eventId)).data.auditId == auditId
+                )
+                || (
+                    auditMatches('fault_resolved', 'fault', request.resource.data.entityId)
+                    && isSupervisorOrAdmin()
+                    && request.resource.data.faultId == request.resource.data.entityId
+                    && getAfter(faultPath(request.resource.data.entityId)).data.lastAuditId == auditId
+                    && getAfter(faultPath(request.resource.data.entityId)).data.resolvedBy == request.auth.uid
+                );
+        }
+
+        function validConflictAudit(auditId) {
+            return (
+                    auditMatches('assignment_conflict', 'component', request.resource.data.entityId)
+                    && isStaff()
+                    && request.resource.data.conflictId is string
+                    && getAfter(conflictPath(request.resource.data.conflictId)).data.lastAuditId == auditId
+                    && getAfter(conflictPath(request.resource.data.conflictId)).data.componentId == request.resource.data.entityId
+                )
+                || (
+                    auditMatches('conflict_resolved', 'conflict', request.resource.data.entityId)
+                    && isRole('administrator')
+                    && getAfter(conflictPath(request.resource.data.entityId)).data.lastAuditId == auditId
+                    && getAfter(conflictPath(request.resource.data.entityId)).data.resolved == true
+                );
+        }
+
+        function validUserAudit() {
+            return (
+                    auditMatches('user_role_changed', 'user', request.resource.data.entityId)
+                    && isRole('administrator')
+                    && request.resource.data.entityId != request.auth.uid
+                    && request.resource.data.oldRole is string
+                    && request.resource.data.newRole is string
+                    && validRole(request.resource.data.oldRole)
+                    && validRole(request.resource.data.newRole)
+                    && request.resource.data.oldRole != request.resource.data.newRole
+                    && get(userProfilePath(request.resource.data.entityId)).data.role == request.resource.data.oldRole
+                    && getAfter(userProfilePath(request.resource.data.entityId)).data.role == request.resource.data.newRole
+                )
+                || (
+                    auditMatches('user_permission_changed', 'user', request.resource.data.entityId)
+                    && isRole('administrator')
+                    && request.resource.data.entityId != request.auth.uid
+                    && request.resource.data.pageKey in [
+                        'dashboard',
+                        'kiosks',
+                        'components',
+                        'log-event',
+                        'fault-history',
+                        'alerts',
+                        'reports',
+                        'users',
+                        'audit-log'
+                    ]
+                    && request.resource.data.oldValue is bool
+                    && request.resource.data.newValue is bool
+                    && request.resource.data.oldValue != request.resource.data.newValue
+                    && get(userProfilePath(request.resource.data.entityId)).data.get('permissions', defaultTechnicianPermissions())[request.resource.data.pageKey] == request.resource.data.oldValue
+                    && getAfter(userProfilePath(request.resource.data.entityId)).data.permissions[request.resource.data.pageKey] == request.resource.data.newValue
+                );
+        }
+
+        function validAuditAction(auditId) {
+            return request.resource.data.action in ['component_registered', 'component_updated']
+                ? validComponentAudit(auditId)
+                : request.resource.data.action in ['kiosk_registered', 'kiosk_updated']
+                    ? validKioskAudit(auditId)
+                    : request.resource.data.action == 'component_event'
+                        ? validEventAudit(auditId)
+                        : request.resource.data.action in ['fault_reported', 'fault_resolved']
+                            ? validFaultAudit(auditId)
+                            : request.resource.data.action in ['assignment_conflict', 'conflict_resolved']
+                                ? validConflictAudit(auditId)
+                                : request.resource.data.action in ['user_role_changed', 'user_permission_changed']
+                                    ? validUserAudit()
+                                    : false;
+        }
+
+        match /users/{uid} {
+            allow get: if isSignedIn()
+                && (request.auth.uid == uid || isRole('administrator'));
+            allow list: if isRole('administrator');
+
+            allow create: if isSignedIn()
+                && request.auth.uid == uid
+                && request.resource.data.keys().hasAll([
+                    'email',
+                    'displayName',
+                    'role',
+                    'permissions',
+                    'createdAt'
+                ])
+                && request.resource.data.keys().hasOnly([
+                    'email',
+                    'displayName',
+                    'role',
+                    'permissions',
+                    'createdAt'
+                ])
+                && request.resource.data.email is string
+                && request.resource.data.displayName is string
+                && request.resource.data.role == 'technician'
+                && request.resource.data.permissions == defaultTechnicianPermissions()
+                && request.resource.data.createdAt is timestamp
+                && request.resource.data.createdAt == request.time;
+
+            allow update: if isSignedIn()
+                && request.auth.uid == uid
+                && request.resource.data.diff(resource.data)
+                    .affectedKeys().hasOnly([
+                        'email',
+                        'displayName',
+                        'updatedAt',
+                        'lastSignInAt',
+                        'lastActiveAt'
+                    ])
                 && (
-                    request.resource.data.action != 'user_role_changed'
+                    !('lastSignInAt' in request.resource.data.diff(resource.data).affectedKeys())
                     || (
-                        request.resource.data.entityType == 'user'
-                        && request.resource.data.keys().hasAll([
-                            'oldRole',
-                            'newRole'
-                        ])
-                        && validRole(request.resource.data.oldRole)
-                        && validRole(request.resource.data.newRole)
-                        && request.resource.data.oldRole != request.resource.data.newRole
+                        request.resource.data.lastSignInAt is timestamp
+                        && request.resource.data.lastSignInAt <= request.time
+                    )
+                )
+                && (
+                    !('lastActiveAt' in request.resource.data.diff(resource.data).affectedKeys())
+                    || (
+                        request.resource.data.lastActiveAt is timestamp
+                        && request.resource.data.lastActiveAt == request.time
                     )
                 );
 
-            // Audit entries cannot be updated.
-            allow update: if false;
+            allow update: if isRole('administrator')
+                && request.auth.uid != uid
+                && request.resource.data.diff(resource.data)
+                    .affectedKeys().hasOnly(['role', 'permissions', 'updatedAt', 'lastAuditId'])
+                && request.resource.data.diff(resource.data)
+                    .affectedKeys().hasAll(['updatedAt', 'lastAuditId'])
+                && request.resource.data.updatedAt is timestamp
+                && request.resource.data.updatedAt == request.time
+                && request.resource.data.lastAuditId is string
+                && (
+                    (
+                        'role' in request.resource.data.diff(resource.data).affectedKeys()
+                        && !('permissions' in request.resource.data.diff(resource.data).affectedKeys())
+                        && validRole(request.resource.data.role)
+                        && request.resource.data.role != resource.data.role
+                        && getAfter(auditPath(request.resource.data.lastAuditId)).data.action == 'user_role_changed'
+                    )
+                    || (
+                        'permissions' in request.resource.data.diff(resource.data).affectedKeys()
+                        && !('role' in request.resource.data.diff(resource.data).affectedKeys())
+                        && validPermissions(request.resource.data.permissions)
+                        && request.resource.data.permissions != resource.data.get('permissions', defaultTechnicianPermissions())
+                        && resource.data.role != 'administrator'
+                        && getAfter(auditPath(request.resource.data.lastAuditId)).data.action == 'user_permission_changed'
+                    )
+                )
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.entityId == uid;
 
-            // Audit entries cannot be deleted.
             allow delete: if false;
+        }
+
+        match /components/{componentId} {
+            allow read: if isStaff();
+
+            allow create: if isStaff()
+                && request.resource.data.keys().hasAll([
+                    'type',
+                    'serialNumber',
+                    'manufacturer',
+                    'model',
+                    'purchaseDate',
+                    'warrantyStart',
+                    'warrantyExpiry',
+                    'serviceLifeMonths',
+                    'serviceLifeExpiry',
+                    'currentKioskId',
+                    'status',
+                    'createdBy',
+                    'createdByEmail',
+                    'createdAt',
+                    'lastEventId',
+                    'lastAuditId'
+                ])
+                && request.resource.data.keys().hasOnly([
+                    'type',
+                    'serialNumber',
+                    'manufacturer',
+                    'model',
+                    'purchaseDate',
+                    'warrantyStart',
+                    'warrantyExpiry',
+                    'serviceLifeMonths',
+                    'serviceLifeExpiry',
+                    'currentKioskId',
+                    'status',
+                    'createdBy',
+                    'createdByEmail',
+                    'createdAt',
+                    'lastEventId',
+                    'lastAuditId'
+                ])
+                && request.resource.data.type is string
+                && request.resource.data.serialNumber is string
+                && request.resource.data.createdBy == request.auth.uid
+                && request.resource.data.createdAt == request.time
+                && request.resource.data.currentKioskId == ''
+                && request.resource.data.status == 'in_storage'
+                && request.resource.data.lastEventId == ''
+                && request.resource.data.lastAuditId is string
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.action == 'component_registered'
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.entityId == componentId
+                && getAfter(/databases/$(database)/documents/componentSerials/$(request.resource.data.serialNumber)).data.componentId == componentId;
+
+            allow update: if isRole('administrator')
+                && request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly([
+                        'manufacturer',
+                        'model',
+                        'purchaseDate',
+                        'warrantyStart',
+                        'warrantyExpiry',
+                        'serviceLifeMonths',
+                        'serviceLifeExpiry',
+                        'updatedAt',
+                        'lastAuditId'
+                    ])
+                && request.resource.data.updatedAt == request.time
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.action == 'component_updated'
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.entityId == componentId
+                || (
+                    isStaff()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly([
+                            'currentKioskId',
+                            'status',
+                            'lastEventId',
+                            'lastAuditId',
+                            'updatedAt'
+                        ])
+                    && request.resource.data.updatedAt == request.time
+                    && getAfter(eventPath(request.resource.data.lastEventId)).data.auditId
+                        == request.resource.data.lastAuditId
+                    && getAfter(eventPath(request.resource.data.lastEventId)).data.componentId == componentId
+                    && getAfter(eventPath(request.resource.data.lastEventId)).data.createdBy == request.auth.uid
+                    && getAfter(auditPath(request.resource.data.lastAuditId)).data.action == 'component_event'
+                    && getAfter(auditPath(request.resource.data.lastAuditId)).data.eventId == request.resource.data.lastEventId
+                    && (
+                        (
+                            getAfter(eventPath(request.resource.data.lastEventId)).data.eventType == 'move'
+                            && resource.data.currentKioskId == getAfter(eventPath(request.resource.data.lastEventId)).data.sourceKioskId
+                            && request.resource.data.currentKioskId == getAfter(eventPath(request.resource.data.lastEventId)).data.destinationKioskId
+                            && request.resource.data.status == 'installed'
+                            && isActiveKiosk(request.resource.data.currentKioskId)
+                        )
+                        || (
+                            getAfter(eventPath(request.resource.data.lastEventId)).data.eventType == 'install'
+                            && resource.data.currentKioskId == ''
+                            && request.resource.data.currentKioskId == getAfter(eventPath(request.resource.data.lastEventId)).data.destinationKioskId
+                            && request.resource.data.status == 'installed'
+                            && isActiveKiosk(request.resource.data.currentKioskId)
+                        )
+                        || (
+                            getAfter(eventPath(request.resource.data.lastEventId)).data.eventType == 'removal'
+                            && resource.data.currentKioskId == getAfter(eventPath(request.resource.data.lastEventId)).data.sourceKioskId
+                            && request.resource.data.currentKioskId == ''
+                            && request.resource.data.status == 'in_storage'
+                        )
+                        || (
+                            getAfter(eventPath(request.resource.data.lastEventId)).data.eventType == 'decommission'
+                            && request.resource.data.currentKioskId == ''
+                            && request.resource.data.status == 'decommissioned'
+                        )
+                    )
+                );
+
+            allow delete: if false;
+        }
+
+        match /componentSerials/{serialNumber} {
+            allow read: if isStaff();
+            allow create: if isStaff()
+                && request.resource.data.keys().hasAll([
+                    'componentId',
+                    'serialNumber',
+                    'createdBy',
+                    'createdAt'
+                ])
+                && request.resource.data.keys().hasOnly([
+                    'componentId',
+                    'serialNumber',
+                    'createdBy',
+                    'createdAt'
+                ])
+                && request.resource.data.componentId is string
+                && request.resource.data.serialNumber == serialNumber
+                && request.resource.data.createdBy == request.auth.uid
+                && request.resource.data.createdAt == request.time
+                && getAfter(componentPath(request.resource.data.componentId)).data.serialNumber == serialNumber;
+            allow update, delete: if false;
+        }
+
+        match /kiosks/{kioskId} {
+            allow read: if isStaff();
+
+            allow create: if isRole('administrator')
+                && request.resource.data.keys().hasAll([
+                    'location',
+                    'installedDate',
+                    'status',
+                    'lastAuditId',
+                    'createdBy',
+                    'createdByEmail',
+                    'createdAt'
+                ])
+                && request.resource.data.keys().hasOnly([
+                    'location',
+                    'installedDate',
+                    'status',
+                    'lastAuditId',
+                    'createdBy',
+                    'createdByEmail',
+                    'createdAt'
+                ])
+                && request.resource.data.location is string
+                && request.resource.data.status == 'active'
+                && request.resource.data.createdBy == request.auth.uid
+                && request.resource.data.createdAt == request.time
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.action == 'kiosk_registered'
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.entityId == kioskId;
+
+            allow update: if isRole('administrator')
+                && request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['location', 'installedDate', 'status', 'updatedAt', 'lastAuditId'])
+                && request.resource.data.status in ['active', 'inactive']
+                && request.resource.data.updatedAt == request.time
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.action == 'kiosk_updated'
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.entityId == kioskId;
+            allow delete: if false;
+        }
+
+        match /events/{eventId} {
+            allow read: if isStaff();
+
+            allow create: if isStaff()
+                && request.resource.data.keys().hasAll([
+                    'auditId',
+                    'eventType',
+                    'componentId',
+                    'kioskId',
+                    'sourceKioskId',
+                    'destinationKioskId',
+                    'summary',
+                    'notes',
+                    'createdBy',
+                    'createdByEmail',
+                    'createdAt'
+                ])
+                && request.resource.data.keys().hasOnly([
+                    'auditId',
+                    'eventType',
+                    'componentId',
+                    'kioskId',
+                    'sourceKioskId',
+                    'destinationKioskId',
+                    'summary',
+                    'notes',
+                    'createdBy',
+                    'createdByEmail',
+                    'createdAt',
+                    'faultId'
+                ])
+                && request.resource.data.eventType in [
+                    'move',
+                    'install',
+                    'removal',
+                    'decommission',
+                    'maintenance',
+                    'fault'
+                ]
+                && request.resource.data.createdBy == request.auth.uid
+                && request.resource.data.createdAt == request.time
+                && request.resource.data.auditId is string
+                && getAfter(auditPath(request.resource.data.auditId)).data.eventId == eventId
+                && (
+                    (
+                        request.resource.data.eventType == 'fault'
+                        && request.resource.data.faultId is string
+                        && getAfter(auditPath(request.resource.data.auditId)).data.action == 'fault_reported'
+                    )
+                    || (
+                        request.resource.data.eventType != 'fault'
+                        && request.resource.data.componentId is string
+                        && request.resource.data.componentId != ''
+                        && exists(componentPath(request.resource.data.componentId))
+                        && getAfter(auditPath(request.resource.data.auditId)).data.action == 'component_event'
+                    )
+                );
+            allow update, delete: if false;
+        }
+
+        match /faults/{faultId} {
+            allow read: if isStaff();
+
+            allow create: if isStaff()
+                && request.resource.data.keys().hasAll([
+                    'targetType',
+                    'targetId',
+                    'componentId',
+                    'kioskId',
+                    'summary',
+                    'description',
+                    'severity',
+                    'status',
+                    'reportedBy',
+                    'reportedByEmail',
+                    'createdAt',
+                    'lastEventId',
+                    'lastAuditId'
+                ])
+                && request.resource.data.keys().hasOnly([
+                    'targetType',
+                    'targetId',
+                    'componentId',
+                    'kioskId',
+                    'summary',
+                    'description',
+                    'severity',
+                    'status',
+                    'reportedBy',
+                    'reportedByEmail',
+                    'createdAt',
+                    'lastEventId',
+                    'lastAuditId'
+                ])
+                && request.resource.data.targetType in ['component', 'kiosk']
+                && request.resource.data.severity in ['low', 'medium', 'high', 'critical']
+                && request.resource.data.status == 'open'
+                && request.resource.data.reportedBy == request.auth.uid
+                && request.resource.data.createdAt == request.time
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.action == 'fault_reported'
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.faultId == faultId
+                && getAfter(eventPath(request.resource.data.lastEventId)).data.faultId == faultId;
+
+            allow update: if isSupervisorOrAdmin()
+                && resource.data.status == 'open'
+                && request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['status', 'resolvedBy', 'resolvedAt', 'lastAuditId'])
+                && request.resource.data.status == 'resolved'
+                && request.resource.data.resolvedBy == request.auth.uid
+                && request.resource.data.resolvedAt == request.time
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.action == 'fault_resolved'
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.faultId == faultId;
+            allow delete: if false;
+        }
+
+        match /conflicts/{conflictId} {
+            allow read: if isSupervisorOrAdmin();
+
+            allow create: if isStaff()
+                && request.resource.data.keys().hasAll([
+                    'componentId',
+                    'sourceKioskId',
+                    'destinationKioskId',
+                    'attemptedBy',
+                    'attemptedByEmail',
+                    'reason',
+                    'createdAt',
+                    'resolved',
+                    'lastAuditId'
+                ])
+                && request.resource.data.keys().hasOnly([
+                    'componentId',
+                    'sourceKioskId',
+                    'destinationKioskId',
+                    'attemptedBy',
+                    'attemptedByEmail',
+                    'reason',
+                    'createdAt',
+                    'resolved',
+                    'lastAuditId'
+                ])
+                && request.resource.data.attemptedBy == request.auth.uid
+                && request.resource.data.createdAt == request.time
+                && request.resource.data.resolved == false
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.action == 'assignment_conflict'
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.conflictId == conflictId;
+
+            allow update: if isRole('administrator')
+                && resource.data.resolved == false
+                && request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['resolved', 'lastAuditId'])
+                && request.resource.data.resolved == true
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.action == 'conflict_resolved'
+                && getAfter(auditPath(request.resource.data.lastAuditId)).data.entityId == conflictId;
+            allow delete: if false;
+        }
+
+        match /auditLogs/{docId} {
+            allow read: if isSupervisorOrAdmin();
+
+            allow create: if validAuditBase() && validAuditAction(docId);
+            allow update, delete: if false;
         }
     }
 }

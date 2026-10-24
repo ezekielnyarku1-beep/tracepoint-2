@@ -1,5 +1,6 @@
 const { after, before, test } = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 const request = require("supertest");
 const bcrypt = require("bcryptjs");
 const { createApp } = require("../server");
@@ -134,4 +135,38 @@ test("static server does not expose server source or environment files", async (
     await request(app).get("/.env").expect(404);
     await request(app).get("/.vscode/login.html").expect(200);
     await request(app).get("/.vscode/admin-login.html").expect(200);
+    await request(app).get("/account.html")
+        .expect(200)
+        .expect(({ text }) => assert.match(text, /id="account-form"/));
+    await request(app).get("/admin-login.html")
+        .expect(200)
+        .expect(({ text }) => assert.ok(text.includes("url=./.vscode/admin-login.html")));
+    await request(app).get("/signup.html").expect(200);
+    await request(app).get("/forgot-password.html").expect(200);
+    await request(app).get("/reset-password.html").expect(200);
+    await request(app).get("/login.html").expect(200);
+    await request(app).get("/roles.html")
+        .expect(200)
+        .expect(({ headers }) => {
+            assert.match(headers["content-security-policy"], /https:\/\/www\.gstatic\.com/);
+            assert.match(headers["content-security-policy"], /http:\/\/127\.0\.0\.1:9099/);
+        });
+    await request(app).get("/signout.html").expect(200);
+    await request(app).get("/.vscode/page-config.js").expect(200);
+    await request(app).get("/.vscode/firebase-emulator.js").expect(200);
+    await request(app).get("/.vscode/data-page-client.js").expect(200);
+    await request(app).get("/.vscode/event-client.js").expect(200);
+    await request(app).get("/.vscode/index.html")
+        .expect(200)
+        .expect(({ text }) => assert.match(text, /url=\.\.\/index\.html/));
+    await request(app).get("/kiosks.html")
+        .expect(200)
+        .expect(({ text }) => assert.doesNotMatch(text, /class="nav-signout"/));
+    assert.match(fs.readFileSync(require.resolve("../account.html"), "utf8"), /class="nav-signout"/);
+    await request(app).get("/log-event.html")
+        .expect(200)
+        .expect(({ headers }) => assert.match(
+            headers["content-security-policy"],
+            /https:\/\/cdn\.jsdelivr\.net/
+        ));
 });

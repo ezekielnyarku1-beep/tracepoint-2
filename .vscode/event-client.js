@@ -1,6 +1,7 @@
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
 import { collection, getDocs } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { auth, db } from "./firebase-client.js";
+import { auth } from "./firebase-auth-client.js";
+import { db } from "./firebase-client.js";
 import {
     ensureUserProfile,
     loadComponent,
@@ -37,6 +38,7 @@ let lookupSequence = 0;
 let cameraStream = null;
 let scannerTimer = null;
 let barcodeDetector = null;
+let fallbackReaderControls = null;
 let fallbackReaderPromise = null;
 let isScanning = false;
 
@@ -167,6 +169,8 @@ function stopCamera() {
         cameraStream = null;
     }
     barcodeDetector = null;
+    fallbackReaderControls?.stop();
+    fallbackReaderControls = null;
     scannerVideo.pause();
     scannerVideo.srcObject = null;
 }
@@ -295,10 +299,16 @@ async function startFallbackScanning() {
     if (!scannerDialog.open || !isScanning) return;
 
     const reader = new FallbackReader();
-    const result = await reader.decodeFromVideoElement(scannerVideo);
-    if (result && scannerDialog.open && isScanning) {
-        await handleScannedValue(result.getText());
+    const controls = await reader.decodeFromVideoElement(scannerVideo, (result) => {
+        if (result && scannerDialog.open && isScanning) {
+            void handleScannedValue(result.getText());
+        }
+    });
+    if (!scannerDialog.open || !isScanning) {
+        controls.stop();
+        return;
     }
+    fallbackReaderControls = controls;
 }
 
 async function handleScannedValue(scannedValue) {

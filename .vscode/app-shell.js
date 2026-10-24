@@ -1,65 +1,12 @@
-function setupDashboardMenu() {
+async function setupDashboardMenu() {
     if (document.getElementById("app-sidebar")) return;
 
     const header = document.querySelector("body > header");
     const navigation = document.querySelector("body > nav");
     const main = document.querySelector("body > main");
-    const pageTitle = main?.querySelector("h2");
-    if (!header || !navigation || !main || !pageTitle) return;
-
-    const nestedAppPage = /\/\.vscode\//i.test(window.location.pathname);
-    const entries = [
-        { label: "Dashboard", file: "index.html" },
-        { label: "Kiosks", file: "kiosks.html" },
-        { label: "Components", file: "components.html" },
-        { label: "Log an Event", file: "log-event.html" },
-        { label: "Fault History", file: "fault-history.html" },
-        { label: "Alerts", file: "alerts.html" },
-        { label: "Reports", file: "reports.html" },
-        { label: "Users", file: "users.html" },
-        { label: "Audit Log", file: "audit-log.html" },
-        { label: "My account", file: "account.html", account: true }
-    ];
-    const list = navigation.querySelector("ul") || navigation.appendChild(document.createElement("ul"));
-    const existingItems = [...list.querySelectorAll(":scope > li")];
-    const normalizeLabel = (link) => link.textContent.trim().replace(/\s+/g, " ").toLowerCase();
-    const itemByLabel = new Map();
-    existingItems.forEach((item) => {
-        const link = item.querySelector("a");
-        if (link) itemByLabel.set(normalizeLabel(link), item);
-    });
-    const currentFile = window.location.pathname.split("/").pop().toLowerCase();
-    const currentEntry = currentFile === "index.html"
-        ? entries[0]
-        : entries.find((entry) => entry.file.toLowerCase() === currentFile);
-
-    entries.forEach((entry) => {
-        let item = itemByLabel.get(entry.label.toLowerCase());
-        if (!item) {
-            item = document.createElement("li");
-            item.append(document.createElement("a"));
-        }
-        const link = item.querySelector("a");
-        link.href = nestedAppPage
-            ? entry.account ? "account.html" : `../${entry.file}`
-            : entry.account ? ".vscode/account.html" : entry.file;
-        if (currentEntry === entry) link.setAttribute("aria-current", "page");
-        else link.removeAttribute("aria-current");
-        if (!link.querySelector("span") && entry.account) {
-            link.innerHTML = `
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" />
-                </svg>
-                <span>My account</span>
-            `;
-        } else if (entry.account) {
-            const label = link.querySelector("span");
-            if (label) label.textContent = "My account";
-        } else {
-            link.textContent = entry.label;
-        }
-        list.append(item);
-    });
+    if (!header || !navigation || !main) return;
+    const isDashboardPage = main.matches(".dashboard-main") || main.dataset.page === "dashboard";
+    if (isDashboardPage) document.body.classList.add("dashboard-page");
 
     const sidebar = document.createElement("aside");
     sidebar.className = "app-sidebar";
@@ -69,14 +16,166 @@ function setupDashboardMenu() {
     document.body.insertBefore(sidebar, main);
     navigation.id = "main-navigation";
 
+    const pageTitle = main.querySelector("h2");
+    if (!pageTitle) return;
+    let heading = pageTitle.parentElement;
+
+    const overlay = document.createElement("button");
+    overlay.className = "app-sidebar-overlay";
+    overlay.type = "button";
+    overlay.setAttribute("aria-label", "Close navigation menu");
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.tabIndex = -1;
+    document.body.insertBefore(overlay, main);
+
+    const menuButton = document.createElement("button");
+    menuButton.className = "app-menu-toggle";
+    menuButton.id = "app-menu-toggle";
+    menuButton.type = "button";
+    menuButton.setAttribute("aria-controls", sidebar.id);
+    menuButton.setAttribute("aria-expanded", "true");
+    menuButton.setAttribute("aria-label", "Toggle menu");
+    menuButton.innerHTML = `
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+    `;
+
+    const isMobile = () => window.matchMedia("(max-width: 900px)").matches;
+    let previousMobileState = isMobile();
+    const isMobileExpanded = () => document.body.classList.contains("sidebar-open");
+    const setMenuButtonState = (expanded, expandedLabel, collapsedLabel) => {
+        menuButton.setAttribute("aria-expanded", String(expanded));
+        menuButton.setAttribute("aria-label", expanded ? expandedLabel : collapsedLabel);
+        menuButton.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+        `;
+    };
+
+    const setMobileMenu = (open, restoreFocus = false) => {
+        document.body.classList.toggle("sidebar-open", open);
+        sidebar.inert = !open;
+        sidebar.setAttribute("aria-hidden", String(!open));
+        setMenuButtonState(open, "Close navigation menu", "Open navigation menu");
+        overlay.setAttribute("aria-hidden", String(!open));
+        if (open) {
+            navigation.querySelector("ul a")?.focus({ preventScroll: true });
+        } else if (restoreFocus) {
+            menuButton.focus({ preventScroll: true });
+        }
+    };
+
+    const updateState = () => {
+        const mobile = isMobile();
+        heading.prepend(menuButton);
+        if (mobile !== previousMobileState) {
+            document.body.classList.remove("sidebar-open", "sidebar-collapsed");
+            previousMobileState = mobile;
+        }
+        if (mobile) {
+            const expanded = isMobileExpanded();
+            sidebar.inert = !expanded;
+            sidebar.setAttribute("aria-hidden", String(!expanded));
+            overlay.setAttribute("aria-hidden", String(!expanded));
+            setMenuButtonState(expanded, "Close navigation menu", "Open navigation menu");
+        } else {
+            document.body.classList.remove("sidebar-open");
+            sidebar.inert = false;
+            sidebar.removeAttribute("aria-hidden");
+            overlay.setAttribute("aria-hidden", "true");
+            const expanded = !document.body.classList.contains("sidebar-collapsed");
+            setMenuButtonState(expanded, "Collapse navigation menu", "Expand navigation menu");
+        }
+    };
+
+    menuButton.addEventListener("click", () => {
+        updateState();
+        if (isMobile()) {
+            setMobileMenu(!isMobileExpanded());
+        } else {
+            document.body.classList.toggle("sidebar-collapsed");
+            updateState();
+        }
+    });
+    overlay.addEventListener("click", () => setMobileMenu(false, true));
+    navigation.addEventListener("click", (event) => {
+        if (isMobile() && event.target instanceof Element && event.target.closest("a")) {
+            setMobileMenu(false, true);
+        }
+    });
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && isMobile() && isMobileExpanded()) {
+            setMobileMenu(false, true);
+        }
+    });
+    window.addEventListener("resize", updateState);
+    updateState();
+
+    const { APP_PAGES, hasPageAccess } = await import("./page-config.js");
+    if (!window.pathfinderProfile?.profile) {
+        if (window.pathfinderProfileError || window.pathfinderAuthError) return;
+    }
+    const profile = await new Promise((resolve) => {
+        if (window.pathfinderProfile?.profile) {
+            resolve(window.pathfinderProfile.profile);
+            return;
+        }
+        document.addEventListener("pathfinder:profile-ready", (event) => {
+            resolve(event.detail.profile);
+        }, { once: true });
+        document.addEventListener("pathfinder:profile-error", () => resolve(null), { once: true });
+        document.addEventListener("pathfinder:auth-error", () => resolve(null), { once: true });
+    });
+    if (!profile) return;
+    const nestedAppPage = /\/\.vscode\//i.test(window.location.pathname);
+    const entries = APP_PAGES.filter((page) => hasPageAccess(profile, page.key));
+    const list = navigation.querySelector("ul") || navigation.appendChild(document.createElement("ul"));
+    list.replaceChildren();
+    const pageItems = new Map();
+    const currentFile = window.location.pathname.split("/").pop().toLowerCase();
+    const currentEntry = entries.find((entry) => entry.fileName.toLowerCase() === currentFile);
+
+    entries.forEach((entry) => {
+        const item = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = nestedAppPage
+            ? entry.key === "account" ? "account.html" : `../${entry.fileName}`
+            : entry.key === "account" ? ".vscode/account.html" : entry.fileName;
+        if (currentEntry === entry) link.setAttribute("aria-current", "page");
+        if (entry.key === "account") {
+            link.innerHTML = `
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" />
+                </svg>
+                <span>${entry.label}</span>
+            `;
+        } else {
+            link.textContent = entry.label;
+        }
+        item.append(link);
+        list.append(item);
+        pageItems.set(entry.key, item);
+    });
+
     const accountLink = [...navigation.querySelectorAll("a")]
-        .find((link) => normalizeLabel(link) === "my account");
-    const isAccountPage = currentEntry?.account === true;
+        .find((link) => link.textContent.trim().toLowerCase() === "my account");
+    const accountItem = pageItems.get("account");
+    const accountSubmenu = document.createElement("ul");
+    accountSubmenu.className = "app-account-submenu";
+    accountSubmenu.setAttribute("aria-label", "Account management");
+    for (const pageKey of ["users", "roles"]) {
+        const pageItem = pageItems.get(pageKey);
+        if (pageItem) accountSubmenu.append(pageItem);
+    }
+    if (accountSubmenu.childElementCount) accountItem.append(accountSubmenu);
+    const isAccountPage = currentEntry?.key === "account";
     const existingSignoutLinks = [...navigation.querySelectorAll("a")]
         .filter((link) => link.textContent.trim().toLowerCase() === "sign out");
     let signoutLink = existingSignoutLinks.shift();
     existingSignoutLinks.forEach((link) => link.remove());
-    if (!isAccountPage) {
+    if (isDashboardPage || !isAccountPage) {
         signoutLink?.remove();
         signoutLink = null;
     } else if (!signoutLink) {
@@ -102,108 +201,36 @@ function setupDashboardMenu() {
     userActions.append(userIdentity);
     if (userButtons.childElementCount) userActions.append(userButtons);
 
-    const overlay = document.createElement("button");
-    overlay.className = "app-sidebar-overlay";
-    overlay.type = "button";
-    overlay.setAttribute("aria-label", "Close navigation menu");
-    overlay.setAttribute("aria-hidden", "true");
-    overlay.tabIndex = -1;
-    document.body.insertBefore(overlay, main);
-
-    const menuButton = document.createElement("button");
-    menuButton.className = "app-menu-toggle";
-    menuButton.id = "app-menu-toggle";
-    menuButton.type = "button";
-    menuButton.setAttribute("aria-controls", sidebar.id);
-    menuButton.setAttribute("aria-expanded", "true");
-    menuButton.setAttribute("aria-label", "Toggle menu");
-    menuButton.innerHTML = `
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-    `;
-
-    const heading = pageTitle.parentElement;
     if (heading.classList.contains("dashboard-heading")) {
         const headingCopy = document.createElement("div");
         headingCopy.className = "app-heading-copy";
         headingCopy.append(...Array.from(heading.children));
         heading.prepend(menuButton);
         heading.append(headingCopy, userActions);
+    } else if (
+        pageTitle.parentElement?.classList.contains("app-heading-copy") &&
+        pageTitle.parentElement.parentElement?.classList.contains("app-page-heading")
+    ) {
+        heading = pageTitle.parentElement.parentElement;
+        heading.prepend(menuButton);
+        heading.append(userActions);
     } else {
         const intro = pageTitle.nextElementSibling;
         const headingRow = document.createElement("div");
         const headingCopy = document.createElement("div");
         headingRow.className = "app-page-heading";
-        main.insertBefore(headingRow, pageTitle);
+        let headingStart = pageTitle;
+        while (headingStart.parentElement !== main) {
+            headingStart = headingStart.parentElement;
+        }
+        main.insertBefore(headingRow, headingStart);
         headingCopy.className = "app-heading-copy";
         headingCopy.append(pageTitle);
         if (intro?.tagName === "P") headingCopy.append(intro);
         headingRow.append(menuButton, headingCopy, userActions);
+        heading = headingRow;
     }
 
-    const isMobile = () => window.matchMedia("(max-width: 900px)").matches;
-    let previousMobileState = isMobile();
-    const isMobileExpanded = () => document.body.classList.contains("sidebar-open");
-
-    const setMobileMenu = (open, restoreFocus = false) => {
-        document.body.classList.toggle("sidebar-open", open);
-        sidebar.inert = !open;
-        sidebar.setAttribute("aria-hidden", String(!open));
-        menuButton.setAttribute("aria-expanded", String(open));
-        overlay.setAttribute("aria-hidden", String(!open));
-        if (open) {
-            navigation.querySelector("ul a")?.focus({ preventScroll: true });
-        } else if (restoreFocus) {
-            menuButton.focus({ preventScroll: true });
-        }
-    };
-
-    const updateState = () => {
-        const mobile = isMobile();
-        if (mobile !== previousMobileState) {
-            document.body.classList.remove("sidebar-open", "sidebar-collapsed");
-            previousMobileState = mobile;
-        }
-        if (mobile) {
-            const expanded = isMobileExpanded();
-            sidebar.inert = !expanded;
-            sidebar.setAttribute("aria-hidden", String(!expanded));
-            overlay.setAttribute("aria-hidden", String(!expanded));
-            menuButton.setAttribute("aria-expanded", String(expanded));
-        } else {
-            document.body.classList.remove("sidebar-open");
-            sidebar.inert = false;
-            sidebar.removeAttribute("aria-hidden");
-            overlay.setAttribute("aria-hidden", "true");
-            menuButton.setAttribute(
-                "aria-expanded",
-                String(!document.body.classList.contains("sidebar-collapsed"))
-            );
-        }
-    };
-
-    menuButton.addEventListener("click", () => {
-        updateState();
-        if (isMobile()) {
-            setMobileMenu(!isMobileExpanded());
-        } else {
-            document.body.classList.toggle("sidebar-collapsed");
-            updateState();
-        }
-    });
-    overlay.addEventListener("click", () => setMobileMenu(false, true));
-    navigation.addEventListener("click", (event) => {
-        if (isMobile() && event.target instanceof Element && event.target.closest("a")) {
-            setMobileMenu(false, true);
-        }
-    });
-    document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && isMobile() && isMobileExpanded()) {
-            setMobileMenu(false, true);
-        }
-    });
-    window.addEventListener("resize", updateState);
     updateState();
 }
 
@@ -236,5 +263,6 @@ function setupNavigationPrefetch() {
     });
 }
 
-setupDashboardMenu();
-setupNavigationPrefetch();
+setupDashboardMenu().then(setupNavigationPrefetch).catch((error) => {
+    console.error("Could not build the application navigation.", error);
+});

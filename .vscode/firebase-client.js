@@ -1,10 +1,16 @@
 import {
+    connectFirestoreEmulator,
     enableIndexedDbPersistence,
     getFirestore
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { app, auth } from "./firebase-auth-client.js";
+import { useFirebaseEmulators } from "./firebase-emulator.js";
 
 export const db = getFirestore(app);
+
+if (useFirebaseEmulators()) {
+    connectFirestoreEmulator(db, "127.0.0.1", 8080);
+}
 
 enableIndexedDbPersistence(db).catch((error) => {
     if (error.code === "failed-precondition") {

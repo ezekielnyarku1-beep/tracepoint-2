@@ -22,17 +22,22 @@ import {
     resolveFault,
     updateComponent,
     updateKiosk,
+    updateUserPermissions,
     updateUserRole
 } from "./data-service.js";
+import { GRANTABLE_PAGES, hasPageAccess } from "./page-config.js";
 import {
     collection,
+    doc,
     getCountFromServer,
     getDocs,
     limit,
+    onSnapshot,
     orderBy,
     query,
     startAfter,
-    startAt
+    startAt,
+    where
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { db } from "./firebase-client.js";
 
@@ -48,13 +53,45 @@ function setStatus(message, isError = false) {
 }
 
 function showPage(title, description, body) {
+    let heading = main.querySelector(":scope > .app-page-heading, :scope > .dashboard-heading");
+    let headingCopy = heading?.querySelector(".app-heading-copy");
+    if (!heading) {
+        const existingTitle = main.querySelector(":scope > h2");
+        if (existingTitle) {
+            const existingDescription = existingTitle.nextElementSibling?.tagName === "P"
+                ? existingTitle.nextElementSibling
+                : null;
+            heading = document.createElement("div");
+            heading.className = "app-page-heading";
+            headingCopy = document.createElement("div");
+            headingCopy.className = "app-heading-copy";
+            headingCopy.append(existingTitle);
+            if (existingDescription) headingCopy.append(existingDescription);
+            heading.append(headingCopy);
+        }
+    }
+
+    const headingContent = headingCopy || heading;
+    if (headingContent) {
+        let pageTitle = headingContent.querySelector(":scope > h2");
+        if (!pageTitle) {
+            pageTitle = document.createElement("h2");
+            headingContent.prepend(pageTitle);
+        }
+        pageTitle.textContent = title;
+
+        let pageDescription = headingContent.querySelector(":scope > p");
+        if (!pageDescription) {
+            pageDescription = document.createElement("p");
+            headingContent.append(pageDescription);
+        }
+        pageDescription.textContent = description;
+    }
+
     main.innerHTML = `
-        <div class="data-page-heading">
-            <h2>${title}</h2>
-            <p>${description}</p>
-        </div>
         <p class="data-page-status" id="data-page-status" role="status" aria-live="polite"></p>
         ${body}`;
+    if (heading) main.prepend(heading);
 }
 
 function showProfileError(error) {
@@ -177,7 +214,7 @@ function calculateServiceExpiry(purchaseDate, months) {
 
 function setupDashboard() {
     showPage("Dashboard", "Monitor your inventory, faults, and recent component activity.", `
-        <section aria-labelledby="dashboard-overview">
+        <section class="dashboard-section" aria-labelledby="dashboard-overview">
             <h3 id="dashboard-overview">Overview</h3>
             <div class="dashboard-stats">
                 <div class="dashboard-stat"><span>Total Kiosks</span><strong id="stat-kiosks">Loading…</strong></div>
@@ -186,7 +223,7 @@ function setupDashboard() {
                 <div class="dashboard-stat"><span>Reported Faults</span><strong id="stat-faults">Loading…</strong></div>
             </div>
         </section>
-        <section aria-labelledby="dashboard-recent"><h3 id="dashboard-recent">Recent Activity</h3>
+        <section class="dashboard-section" aria-labelledby="dashboard-recent"><h3 id="dashboard-recent">Recent Activity</h3>
             <div id="recent-activity">${createTable(["Event", "Asset", "Date"], "", "Loading recent activity…")}</div>
         </section>`);
     Promise.all([
@@ -601,24 +638,30 @@ function csvCell(value) {
     return `"${text.replace(/"/g, '""')}"`;
 }
 
-async function exportCollection(collectionName, fields) {
+async function loadAllReportRecords(collectionName, recent = false) {
     const records = [];
     let cursor = null;
     let page;
     do {
-        page = await loadPage(collectionName, cursor);
+        page = recent
+            ? await loadRecentPage(collectionName, cursor)
+            : await loadPage(collectionName, cursor);
         records.push(...page.items);
         cursor = page.cursor;
     } while (page.hasMore);
+    return records;
+}
+
+function downloadReportCsv(report, records) {
     const lines = [
-        fields.map(csvCell).join(","),
-        ...records.map((record) => fields.map((field) => csvCell(record[field])).join(","))
+        report.fields.map((field) => csvCell(field.label)).join(","),
+        ...records.map((record) => report.fields.map((field) => csvCell(record[field.key])).join(","))
     ];
     const blob = new Blob([`\uFEFF${lines.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `pathfinder-${collectionName}-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.download = `pathfinder-${report.key}-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.append(anchor);
     anchor.click();
     anchor.remove();
@@ -626,46 +669,218 @@ async function exportCollection(collectionName, fields) {
 }
 
 async function setupReports() {
-    showPage("Reports", "View current record totals and export inventory and history as CSV files.", `
-        <section><h3>Record totals</h3><div id="report-counts">Loading totals…</div></section>
-        <section><h3>Export data</h3><p>Exports include all records visible to your role. Large exports may take a little time.</p>
-            <div class="data-report-actions">
-                <button type="button" data-export="components">Export components</button>
-                <button type="button" data-export="kiosks">Export kiosks</button>
-                <button type="button" data-export="events">Export event history</button>
-                <button type="button" data-export="faults">Export fault history</button>
-            </div></section>`);
-    try {
-        const [components, kiosks, events, faults] = await Promise.all([
-            getDocumentCount("components"),
-            getDocumentCount("kiosks"),
-            getDocumentCount("events"),
-            getDocumentCount("faults")
-        ]);
-        document.getElementById("report-counts").innerHTML = `<p>Components: ${components}</p><p>Kiosks: ${kiosks}</p><p>Events: ${events}</p><p>Faults: ${faults}</p>`;
-    } catch (error) {
-        setStatus(error.message || "Could not load report totals.", true);
-    }
-    const fields = {
-        components: ["id", "type", "serialNumber", "manufacturer", "model", "purchaseDate", "warrantyStart", "warrantyExpiry", "serviceLifeMonths", "serviceLifeExpiry", "currentKioskId", "status", "createdAt"],
-        kiosks: ["id", "location", "installedDate", "status", "createdAt"],
-        events: ["id", "eventType", "componentId", "kioskId", "sourceKioskId", "destinationKioskId", "summary", "notes", "createdBy", "createdAt"],
-        faults: ["id", "targetType", "targetId", "summary", "description", "severity", "status", "reportedBy", "createdAt", "resolvedBy", "resolvedAt"]
+    const reports = [
+        {
+            key: "movement-history",
+            title: "Movement history",
+            description: "Component events, newest first.",
+            icon: "↔",
+            collection: "events",
+            recent: true,
+            fields: [
+                { key: "createdAt", label: "Date" },
+                { key: "eventType", label: "Event" },
+                { key: "componentId", label: "Component" },
+                { key: "sourceKioskId", label: "From kiosk" },
+                { key: "destinationKioskId", label: "To kiosk" },
+                { key: "summary", label: "Summary" },
+                { key: "createdBy", label: "Recorded by" }
+            ]
+        },
+        {
+            key: "kiosk-configuration",
+            title: "Kiosk configuration",
+            description: "Kiosks and their currently installed components.",
+            collection: "kiosks",
+            fields: [
+                { key: "id", label: "Kiosk" },
+                { key: "location", label: "Location" },
+                { key: "installedDate", label: "Installed date" },
+                { key: "status", label: "Status" },
+                { key: "installedComponents", label: "Installed components" }
+            ]
+        },
+        {
+            key: "warranty-lifecycle",
+            title: "Warranty & lifecycle",
+            description: "Warranty and service-life dates for registered components.",
+            collection: "components",
+            filter: (component) => Boolean(component.warrantyExpiry || component.serviceLifeExpiry),
+            fields: [
+                { key: "id", label: "Component" },
+                { key: "type", label: "Type" },
+                { key: "serialNumber", label: "Serial number" },
+                { key: "currentKioskId", label: "Current kiosk" },
+                { key: "warrantyStart", label: "Warranty start" },
+                { key: "warrantyExpiry", label: "Warranty expiry" },
+                { key: "serviceLifeExpiry", label: "Service-life expiry" },
+                { key: "status", label: "Status" }
+            ]
+        },
+        {
+            key: "missing-components",
+            title: "Missing components",
+            description: "Components explicitly marked missing in the register.",
+            collection: "components",
+            filter: (component) => component.missing === true
+                || String(component.status || "").toLowerCase() === "missing",
+            fields: [
+                { key: "id", label: "Component" },
+                { key: "type", label: "Type" },
+                { key: "serialNumber", label: "Serial number" },
+                { key: "manufacturer", label: "Manufacturer" },
+                { key: "model", label: "Model" },
+                { key: "currentKioskId", label: "Last kiosk" },
+                { key: "status", label: "Status" }
+            ]
+        },
+        {
+            key: "fault-report",
+            title: "Fault report",
+            description: "Reported faults, severity, target, and status.",
+            collection: "faults",
+            recent: true,
+            fields: [
+                { key: "createdAt", label: "Date reported" },
+                { key: "targetType", label: "Target type" },
+                { key: "targetId", label: "Target" },
+                { key: "summary", label: "Summary" },
+                { key: "severity", label: "Severity" },
+                { key: "status", label: "Status" },
+                { key: "reportedBy", label: "Reported by" },
+                { key: "resolvedAt", label: "Date resolved" }
+            ]
+        },
+        {
+            key: "full-inventory",
+            title: "Full inventory",
+            description: "Component identity, location, status, and warranty.",
+            collection: "components",
+            fields: [
+                { key: "id", label: "Component" },
+                { key: "type", label: "Type" },
+                { key: "serialNumber", label: "Serial number" },
+                { key: "manufacturer", label: "Manufacturer" },
+                { key: "model", label: "Model" },
+                { key: "currentKioskId", label: "Current kiosk" },
+                { key: "status", label: "Status" },
+                { key: "warrantyExpiry", label: "Warranty expiry" },
+                { key: "createdAt", label: "Date registered" }
+            ]
+        }
+    ];
+    const reportIcons = {
+        "kiosk-configuration": "▣",
+        "warranty-lifecycle": "!",
+        "missing-components": "?",
+        "fault-report": "⚠",
+        "full-inventory": "≡"
     };
-    document.querySelectorAll("[data-export]").forEach((button) => button.addEventListener("click", async () => {
+    reports.forEach((report) => {
+        if (!report.icon) report.icon = reportIcons[report.key];
+    });
+
+    showPage("Reports", "Generate and preview reports from current database records.", `
+        <div class="data-reports-grid" id="data-reports-grid">
+            ${reports.map((report) => `
+                <article class="data-report-card">
+                    <span class="data-report-icon" aria-hidden="true">${report.icon}</span>
+                    <h3>${report.title}</h3>
+                    <p>${report.description}</p>
+                    <span class="data-report-source">Generated from current database records.</span>
+                    <div class="data-report-actions">
+                        <button type="button" data-report-export="${report.key}">Export CSV</button>
+                        <button type="button" class="data-secondary-button" data-report-preview="${report.key}">Preview</button>
+                    </div>
+                </article>`).join("")}
+        </div>
+        <dialog class="data-report-preview" id="data-report-preview" aria-labelledby="data-report-preview-title">
+            <div class="data-report-preview-content">
+                <header class="data-report-preview-header">
+                    <h2 id="data-report-preview-title"></h2>
+                    <button type="button" class="data-secondary-button" data-close-report-preview aria-label="Close preview">Close</button>
+                </header>
+                <p id="data-report-preview-count"></p>
+                <div id="data-report-preview-table"></div>
+            </div>
+        </dialog>`);
+
+    const reportGrid = document.getElementById("data-reports-grid");
+    const previewDialog = document.getElementById("data-report-preview");
+    previewDialog.querySelector("[data-close-report-preview]")
+        .addEventListener("click", () => previewDialog.close());
+    previewDialog.addEventListener("click", (event) => {
+        if (event.target === previewDialog) previewDialog.close();
+    });
+
+    const loadReport = async (report) => {
+        if (report.key === "kiosk-configuration") {
+            const [kiosks, components] = await Promise.all([
+                loadAllReportRecords("kiosks"),
+                loadAllReportRecords("components")
+            ]);
+            const installedByKiosk = new Map();
+            components.forEach((component) => {
+                if (!component.currentKioskId) return;
+                const installed = installedByKiosk.get(component.currentKioskId) || [];
+                installed.push(component.id);
+                installedByKiosk.set(component.currentKioskId, installed);
+            });
+            return kiosks.map((kiosk) => ({
+                ...kiosk,
+                installedComponents: (installedByKiosk.get(kiosk.id) || []).join(", ")
+            }));
+        }
+        const records = await loadAllReportRecords(report.collection, report.recent);
+        return report.filter ? records.filter(report.filter) : records;
+    };
+
+    reportGrid.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-report-export], [data-report-preview]");
+        if (!button) return;
+        const reportKey = button.dataset.reportExport || button.dataset.reportPreview;
+        const report = reports.find((item) => item.key === reportKey);
+        if (!report) {
+            setStatus("Could not find the selected report.", true);
+            return;
+        }
+
         button.disabled = true;
-        const label = button.textContent;
-        button.textContent = "Preparing export…";
+        const originalLabel = button.textContent;
+        button.textContent = button.hasAttribute("data-report-export") ? "Preparing…" : "Loading…";
         try {
-            await exportCollection(button.dataset.export, fields[button.dataset.export]);
-            setStatus(`${label.replace("Export ", "")} export downloaded.`);
+            const records = await loadReport(report);
+            if (button.hasAttribute("data-report-export")) {
+                downloadReportCsv(report, records);
+                setStatus(`${report.title} CSV downloaded.`);
+            } else {
+                const previewLimit = 25;
+                const rows = records.slice(0, previewLimit).map((record) =>
+                    `<tr>${report.fields.map((field) => `<td>${cellText(
+                        field.key === "createdAt" || field.key === "resolvedAt"
+                            ? formatDate(record[field.key])
+                            : record[field.key]
+                    )}</td>`).join("")}</tr>`
+                ).join("");
+                previewDialog.querySelector("#data-report-preview-title").textContent = report.title;
+                previewDialog.querySelector("#data-report-preview-count").textContent =
+                    records.length > previewLimit
+                        ? `Showing ${previewLimit} of ${records.length} records.`
+                        : `${records.length} record${records.length === 1 ? "" : "s"}.`;
+                previewDialog.querySelector("#data-report-preview-table").innerHTML = createTable(
+                    report.fields.map((field) => field.label),
+                    rows,
+                    "No records found for this report."
+                );
+                previewDialog.showModal();
+            }
         } catch (error) {
-            setStatus(error.message || "Could not export records.", true);
+            setStatus(error.message || `Could not load the ${report.title.toLowerCase()} report.`, true);
         } finally {
             button.disabled = false;
-            button.textContent = label;
+            button.textContent = originalLabel;
         }
-    }));
+    });
 }
 
 async function setupUsers() {
@@ -689,9 +904,10 @@ async function setupUsers() {
     const pageFirstDocuments = [];
 
     const attachRoleHandlers = () => table.querySelectorAll("[data-save-role]").forEach((button) => button.addEventListener("click", async () => {
-        const select = Array.from(table.querySelectorAll("[data-user-role]"))
-            .find((candidate) => candidate.dataset.userRole === button.dataset.saveRole);
-        const previousRole = button.closest("tr").dataset.currentRole;
+        const row = button.closest("tr");
+        const select = row.querySelector("[data-user-role]");
+        if (!select || select.disabled) return;
+        const previousRole = row.dataset.currentRole;
         const nextRole = select.value;
         if (nextRole === "administrator" && previousRole !== "administrator" &&
             !window.confirm(`Promote ${select.getAttribute("aria-label").replace("Role for ", "")} to administrator?`)) {
@@ -700,7 +916,8 @@ async function setupUsers() {
         button.disabled = true;
         try {
             const changed = await updateUserRole(button.dataset.saveRole, nextRole, context.profile, context.user.uid);
-            button.closest("tr").dataset.currentRole = nextRole;
+            row.dataset.currentRole = nextRole;
+            row.querySelector('[data-label="Current role"]').textContent = nextRole;
             setStatus(changed ? "User role updated and recorded in the audit log." : "The user already has that role.");
         } catch (error) {
             setStatus(error.message || "Could not update the user role.", true);
@@ -746,11 +963,11 @@ async function setupUsers() {
             ).join("");
             const invalidRoleOption = validRole ? "" : `<option value="" selected disabled>Invalid role</option>`;
             return `<tr data-current-role="${escapeHtml(user.role)}">
-                <td>${cellText(user.displayName)}</td>
-                <td>${cellText(user.email)}</td>
-                <td>${cellText(user.role)}</td>
-                <td><select aria-label="New role for ${cellText(user.email)}" data-user-role="${escapeHtml(user.id)}" ${isCurrentUser || !validRole ? "disabled title=\"Ask another administrator to change your role.\"" : ""}>${invalidRoleOption}${roleOptions}</select></td>
-                <td><button type="button" data-save-role="${escapeHtml(user.id)}" ${isCurrentUser || !validRole ? "disabled" : ""}>Save role</button></td>
+                <td data-label="Name">${cellText(user.displayName)}</td>
+                <td data-label="Email">${cellText(user.email)}</td>
+                <td data-label="Current role">${cellText(user.role)}</td>
+                <td data-label="Change role"><select aria-label="New role for ${cellText(user.email)}" data-user-role="${escapeHtml(user.id)}" ${isCurrentUser || !validRole ? "disabled title=\"Ask another administrator to change your role.\"" : ""}>${invalidRoleOption}${roleOptions}</select></td>
+                <td data-label="Save"><button type="button" data-save-role="${escapeHtml(user.id)}" aria-label="Save role for ${cellText(user.email)}" ${isCurrentUser || !validRole ? "disabled" : ""}>Save role</button></td>
             </tr>`;
         }).join("");
         table.innerHTML = createTable(
@@ -857,6 +1074,249 @@ async function setupAuditLog() {
     await appendPage(await loadRecentPage("auditLogs"), true);
 }
 
+async function setupRoles() {
+    if (context.profile.role !== "administrator") {
+        showPage("Roles", "Page access is managed by an administrator.", `<section><p>You do not have permission to manage page access.</p></section>`);
+        return;
+    }
+
+    const headers = ["Name", "Email", "Role", "Actions"];
+    showPage("Roles", "View user details and manage page access. Administrators always have access to every page.", `
+        <section class="role-management">
+            <p>Open a user’s profile to manage their page access. Users without a saved value keep the default access for their role. You cannot change your own access or remove access from an administrator.</p>
+            <div id="roles-table">${createTable(headers, "", "Loading users…")}</div>
+            <dialog class="user-profile-dialog" id="user-profile-dialog" aria-labelledby="user-profile-title">
+                <div class="user-profile-dialog-content">
+                    <header class="user-profile-header">
+                        <div class="user-profile-avatar" id="user-profile-avatar" aria-hidden="true"></div>
+                        <div><h2 id="user-profile-title"></h2><p id="user-profile-email"></p></div>
+                    </header>
+                    <dl class="user-profile-facts">
+                        <div><dt>Role</dt><dd id="user-profile-role"></dd></div>
+                        <div><dt>App activity</dt><dd class="user-profile-account-status" id="user-profile-status">Not tracked</dd></div>
+                        <div><dt>Joined</dt><dd id="user-profile-joined"></dd></div>
+                        <div><dt>Last signed in</dt><dd id="user-profile-last-sign-in">Not tracked</dd></div>
+                    </dl>
+                    <section class="user-profile-section">
+                        <h3>Page access</h3>
+                        <p class="user-profile-permission-help">Select one or more pages, then save your changes.</p>
+                        <div class="user-profile-pages" id="user-profile-pages" role="group" aria-label="Pages this user can access"></div>
+                        <p class="user-profile-permission-status" id="user-profile-permission-status" role="status" aria-live="polite"></p>
+                    </section>
+                    <section class="user-profile-section">
+                        <h3>Recent account activity</h3>
+                        <ul class="user-profile-activity" id="user-profile-activity"><li>Loading activity…</li></ul>
+                    </section>
+                    <div class="user-profile-footer">
+                        <button type="button" class="user-profile-save data-secondary-button" id="user-profile-save" hidden disabled>Save changes</button>
+                        <button type="button" class="user-profile-close">Close</button>
+                    </div>
+                </div>
+            </dialog>
+        </section>`);
+    const table = document.getElementById("roles-table");
+    const profileDialog = document.getElementById("user-profile-dialog");
+    const profilePages = profileDialog.querySelector("#user-profile-pages");
+    const profileSaveButton = profileDialog.querySelector("#user-profile-save");
+    const profilePermissionStatus = profileDialog.querySelector("#user-profile-permission-status");
+    let activeProfileUser = null;
+    let activeProfileCanEdit = false;
+    let savedProfilePermissions = {};
+    let draftProfilePermissions = {};
+    let stopWatchingProfile = () => {};
+    const profileStatus = profileDialog.querySelector("#user-profile-status");
+    const profileLastSignIn = profileDialog.querySelector("#user-profile-last-sign-in");
+    const refreshProfileStatus = (user) => {
+        const lastActiveAt = user.lastActiveAt?.toDate?.();
+        const age = lastActiveAt ? Date.now() - lastActiveAt.getTime() : Infinity;
+        const isActive = age >= 0 && age <= 120_000;
+        profileStatus.dataset.state = isActive ? "active" : lastActiveAt ? "inactive" : "unknown";
+        profileStatus.textContent = isActive ? "Active" : lastActiveAt ? "Inactive" : "Not tracked";
+        profileLastSignIn.textContent = formatDate(user.lastSignInAt);
+    };
+    profileDialog.querySelector(".user-profile-close").addEventListener("click", () => profileDialog.close());
+    profileDialog.addEventListener("close", () => stopWatchingProfile());
+    profileDialog.addEventListener("click", (event) => {
+        if (event.target === profileDialog) profileDialog.close();
+    });
+    setStatus("Loading users…");
+
+    try {
+        const snapshot = await getDocs(collection(db, "users"));
+        const users = snapshot.docs
+            .map((document) => ({ id: document.id, ...document.data() }))
+            .sort((left, right) =>
+                String(left.displayName || left.email || "").localeCompare(
+                    String(right.displayName || right.email || "")
+                )
+            );
+        const rows = users.map((user) => {
+            const isCurrentUser = user.id === context.user.uid;
+            return `<tr>
+                <td>${cellText(user.displayName)}</td>
+                <td>${cellText(user.email)}</td>
+                <td>${cellText(user.role)}</td>
+                <td class="role-actions"><button type="button" class="data-secondary-button" data-view-user="${escapeHtml(user.id)}">View</button>
+                    ${isCurrentUser ? "<span>This is you</span>" : ""}</td>
+            </tr>`;
+        }).join("");
+        table.innerHTML = createTable(headers, rows, "No users found");
+
+        table.querySelectorAll("[data-view-user]").forEach((button) => {
+            button.addEventListener("click", async () => {
+                const user = users.find((item) => item.id === button.dataset.viewUser);
+                if (!user) {
+                    setStatus("Could not find the selected user.", true);
+                    return;
+                }
+                const displayName = user.displayName || user.email || "Pathfinder user";
+                profileDialog.querySelector("#user-profile-title").textContent = displayName;
+                profileDialog.querySelector("#user-profile-email").textContent = user.email || "No email on file";
+                profileDialog.querySelector("#user-profile-avatar").textContent =
+                    displayName.trim().charAt(0).toUpperCase() || "?";
+                profileDialog.querySelector("#user-profile-role").textContent =
+                    user.role ? user.role.replaceAll("_", " ") : "Unknown";
+                profileDialog.querySelector("#user-profile-joined").textContent = formatDate(user.createdAt);
+                stopWatchingProfile();
+                refreshProfileStatus(user);
+                const unsubscribe = onSnapshot(doc(db, "users", user.id), (userSnapshot) => {
+                    if (!userSnapshot.exists()) {
+                        profileStatus.dataset.state = "unknown";
+                        profileStatus.textContent = "Unavailable";
+                        return;
+                    }
+                    Object.assign(user, userSnapshot.data());
+                    if (activeProfileUser === user) refreshProfileStatus(user);
+                }, (error) => {
+                    console.error("Could not refresh user activity status.", error);
+                    profileStatus.dataset.state = "unknown";
+                    profileStatus.textContent = "Could not load";
+                });
+                const refreshTimer = window.setInterval(() => refreshProfileStatus(user), 15_000);
+                stopWatchingProfile = () => {
+                    unsubscribe();
+                    window.clearInterval(refreshTimer);
+                };
+                activeProfileUser = user;
+                activeProfileCanEdit = ROLES.includes(user.role)
+                    && user.id !== context.user.uid
+                    && user.role !== "administrator";
+                savedProfilePermissions = Object.fromEntries(
+                    GRANTABLE_PAGES.map((page) => [page.key, hasPageAccess(user, page.key)])
+                );
+                draftProfilePermissions = { ...savedProfilePermissions };
+                profilePermissionStatus.textContent = "";
+                profileSaveButton.hidden = !activeProfileCanEdit;
+                profileSaveButton.disabled = true;
+                profilePages.replaceChildren(...GRANTABLE_PAGES.map((page) => {
+                    const selected = draftProfilePermissions[page.key];
+                    const accessButton = document.createElement("button");
+                    accessButton.type = "button";
+                    accessButton.className = "user-profile-page-option";
+                    accessButton.textContent = page.label;
+                    accessButton.dataset.pageAccess = page.key;
+                    accessButton.setAttribute("aria-pressed", String(selected));
+                    accessButton.setAttribute(
+                        "aria-label",
+                        `${page.label} access: ${selected ? "selected" : "not selected"}`
+                    );
+                    accessButton.classList.toggle("is-selected", selected);
+                    accessButton.disabled = !activeProfileCanEdit;
+                    return accessButton;
+                }));
+                const activity = profileDialog.querySelector("#user-profile-activity");
+                activity.replaceChildren(Object.assign(document.createElement("li"), {
+                    textContent: "Loading activity…"
+                }));
+                profileDialog.showModal();
+
+                try {
+                    const activitySnapshot = await getDocs(query(
+                        collection(db, "auditLogs"),
+                        where("entityId", "==", user.id),
+                        limit(20)
+                    ));
+                    const activityRecords = activitySnapshot.docs
+                        .map((record) => ({ record, data: record.data() }))
+                        .sort((left, right) => {
+                            const leftTime = left.data.createdAt?.toMillis?.() || 0;
+                            const rightTime = right.data.createdAt?.toMillis?.() || 0;
+                            return rightTime - leftTime;
+                        })
+                        .slice(0, 5);
+                    activity.replaceChildren();
+                    if (!activityRecords.length) {
+                        const empty = document.createElement("li");
+                        empty.textContent = "No account activity recorded.";
+                        activity.append(empty);
+                        return;
+                    }
+                    activityRecords.forEach(({ data: item }) => {
+                        const entry = document.createElement("li");
+                        const action = document.createElement("strong");
+                        action.textContent = item.summary || item.action || "Account updated";
+                        const date = document.createElement("time");
+                        date.textContent = formatDate(item.createdAt);
+                        entry.append(action, date);
+                        activity.append(entry);
+                    });
+                } catch (error) {
+                    activity.replaceChildren();
+                    const message = document.createElement("li");
+                    message.textContent = error.message || "Could not load account activity.";
+                    activity.append(message);
+                }
+            });
+        });
+
+        profilePages.addEventListener("click", (event) => {
+            const button = event.target.closest("[data-page-access]");
+            if (!button || button.disabled) return;
+            const pageKey = button.dataset.pageAccess;
+            const selected = !draftProfilePermissions[pageKey];
+            draftProfilePermissions[pageKey] = selected;
+            button.setAttribute("aria-pressed", String(selected));
+            button.setAttribute(
+                "aria-label",
+                `${GRANTABLE_PAGES.find((page) => page.key === pageKey)?.label} access: ${selected ? "selected" : "not selected"}`
+            );
+            button.classList.toggle("is-selected", selected);
+            profileSaveButton.disabled = !GRANTABLE_PAGES.some(
+                (page) => draftProfilePermissions[page.key] !== savedProfilePermissions[page.key]
+            );
+            profilePermissionStatus.textContent = "";
+        });
+        profileSaveButton.addEventListener("click", async () => {
+            if (!activeProfileUser || !activeProfileCanEdit) return;
+            const permissions = { ...draftProfilePermissions };
+            profileSaveButton.disabled = true;
+            try {
+                const changed = await updateUserPermissions(
+                    activeProfileUser.id,
+                    permissions,
+                    context.profile,
+                    context.user.uid
+                );
+                activeProfileUser.permissions = permissions;
+                savedProfilePermissions = { ...permissions };
+                profilePermissionStatus.textContent = changed
+                    ? "Page access updated and recorded in the audit log."
+                    : "No page access changes to save.";
+            } catch (error) {
+                profilePermissionStatus.textContent = error.message || "Could not update page access.";
+                setStatus(error.message || "Could not update page access.", true);
+                profileSaveButton.disabled = false;
+                return;
+            }
+            setStatus(profilePermissionStatus.textContent);
+        });
+        setStatus("");
+    } catch (error) {
+        setStatus(error.message || "Could not load user permissions.", true);
+        table.innerHTML = createTable(headers, "", "Could not load users.");
+    }
+}
+
 async function initializePage() {
     if (started || !main || !context) return;
     started = true;
@@ -870,6 +1330,7 @@ async function initializePage() {
             case "reports": await setupReports(); break;
             case "users": await setupUsers(); break;
             case "audit-log": await setupAuditLog(); break;
+            case "roles": await setupRoles(); break;
             default: started = false; break;
         }
     } catch (error) {

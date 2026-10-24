@@ -21,7 +21,7 @@
     ['My account', '.vscode/account.html']
   ];
 
-  // Styles (injected, so no CSS file edits are needed)
+   
   var css = [
     '.pfd-btn,.pfd-overlay,.pfd-drawer{display:none}',
     '@media (max-width:900px){',

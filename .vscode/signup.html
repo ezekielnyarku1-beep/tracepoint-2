@@ -3,79 +3,500 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pathfinder | Sign Up</title>
+    <meta name="color-scheme" content="light">
+    <title>Pathfinder | Create account</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="stylesheet" href="style.css">
     <script defer src="font-loader.js"></script>
+    <style>
+        body.signup-page {
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            display: block;
+            overflow-x: hidden;
+            background: #f4f6f3;
+            color: #183432;
+            font-family: "Poppins", sans-serif;
+        }
+
+        .signup-layout {
+            width: 100%;
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: minmax(360px, 45%) minmax(0, 55%);
+            grid-template-rows: minmax(0, 1fr);
+        }
+
+        .signup-brand-panel {
+            position: relative;
+            min-height: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+            padding: 50px clamp(34px, 5.8vw, 80px) 28px;
+            background: #153736;
+            color: #f8faf7;
+        }
+
+        .signup-brand-panel::before,
+        .signup-brand-panel::after {
+            position: absolute;
+            z-index: 0;
+            right: -175px;
+            bottom: -305px;
+            width: 560px;
+            height: 560px;
+            border: 1px solid rgba(227, 193, 60, 0.22);
+            border-radius: 50%;
+            content: "";
+            pointer-events: none;
+        }
+
+        .signup-brand-panel::after {
+            right: -128px;
+            bottom: -360px;
+            width: 700px;
+            height: 700px;
+            border-color: rgba(255, 255, 255, 0.035);
+            box-shadow: 0 0 0 56px rgba(255, 255, 255, 0.025);
+        }
+
+        .signup-brand,
+        .signup-brand-message,
+        .signup-brand-footer {
+            position: relative;
+            z-index: 1;
+        }
+
+        .signup-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .signup-brand-mark {
+            width: 38px;
+            height: 38px;
+            display: grid;
+            flex: 0 0 38px;
+            place-items: center;
+            border-radius: 10px;
+            background: #f2c943;
+            color: #153736;
+            font-size: 1.25rem;
+            font-weight: 800;
+        }
+
+        .signup-brand-name {
+            display: grid;
+            line-height: 1.25;
+        }
+
+        .signup-brand-name strong {
+            font-size: 0.95rem;
+        }
+
+        .signup-brand-name small {
+            margin-top: 4px;
+            color: #b7cfca;
+            font-size: 0.68rem;
+        }
+
+        .signup-brand-message {
+            width: min(100%, 440px);
+            margin: 48px 0;
+        }
+
+        .signup-brand-eyebrow {
+            margin: 0 0 22px;
+            color: #f2c943;
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .signup-brand-message h1 {
+            max-width: 430px;
+            margin: 0;
+            color: #ffffff;
+            font-size: clamp(2.45rem, 4.5vw, 3.4rem);
+            font-weight: 750;
+            letter-spacing: -0.055em;
+            line-height: 1.02;
+        }
+
+        .signup-brand-description {
+            max-width: 430px;
+            margin: 20px 0 0;
+            color: #c6d9d4;
+            font-size: clamp(0.95rem, 1.35vw, 1.08rem);
+            line-height: 1.7;
+        }
+
+        .signup-brand-footer {
+            margin: 0;
+            color: #9fbcb6;
+            font-size: 0.72rem;
+        }
+
+        .signup-content {
+            max-width: none;
+            min-width: 0;
+            min-height: 0;
+            height: 100%;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            padding: 32px clamp(24px, 6vw, 84px);
+        }
+
+        body.signup-page > .signup-layout > .signup-content > .login-card {
+            width: min(100%, 432px);
+            margin: 0;
+            padding: clamp(28px, 3.4vw, 40px) clamp(24px, 4vw, 42px) 30px;
+            overflow: visible;
+            border: 1px solid #e0e6e1;
+            border-radius: 14px;
+            background: #fffefa;
+            box-shadow: 0 20px 55px rgba(29, 55, 47, 0.08);
+        }
+
+        body.signup-page > .signup-layout > .signup-content > .login-card::before {
+            content: none;
+        }
+
+        .signup-card-eyebrow {
+            margin: 0 0 13px;
+            color: #087f75;
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .signup-content .login-card h2 {
+            margin: 0 0 8px;
+            color: #172f2f;
+            font-size: clamp(1.55rem, 2.5vw, 1.85rem);
+            font-weight: 750;
+            letter-spacing: -0.045em;
+            line-height: 1.2;
+        }
+
+        .signup-content .login-description {
+            margin: 0 0 20px;
+            color: #6d7c78;
+            font-size: 0.84rem;
+        }
+
+        .signup-content .form-group {
+            margin-bottom: 14px;
+        }
+
+        .signup-content .form-group label {
+            margin-bottom: 6px;
+            color: #233b38;
+            font-size: 0.76rem;
+        }
+
+        .signup-content .form-group input {
+            min-height: 45px;
+            padding: 10px 13px;
+            border-color: #d9e2dc;
+            border-radius: 9px;
+            background: #ffffff;
+            font-size: 0.84rem;
+        }
+
+        .signup-content .form-group input:focus {
+            border-color: #0b827b;
+            box-shadow: 0 0 0 3px rgba(11, 130, 123, 0.14);
+        }
+
+        .signup-password-hint {
+            margin: -7px 0 16px;
+            color: #6d7c78;
+            font-size: 0.7rem;
+        }
+
+        .signup-content .login-button {
+            min-height: 46px;
+            padding: 11px 16px;
+            border-radius: 8px;
+            background: #07867e;
+            box-shadow: none;
+            font-size: 0.82rem;
+        }
+
+        .signup-content .login-button:hover:not(:disabled) {
+            background: #076f69;
+            box-shadow: 0 5px 13px rgba(8, 70, 62, 0.14);
+        }
+
+        .signup-message {
+            min-height: 1.5em;
+            margin: 10px 0 0;
+            color: #6d7c78;
+            font-size: 0.72rem;
+            line-height: 1.5;
+            text-align: center;
+        }
+
+        .signup-message:empty {
+            display: none;
+        }
+
+        .signup-message[data-state="error"] {
+            color: #a12622;
+        }
+
+        .signup-content .signup-prompt {
+            margin: 14px 0 0;
+            color: #6d7c78;
+            font-size: 0.73rem;
+        }
+
+        .signup-content .signup-prompt a {
+            color: #087f75;
+        }
+
+        @media (max-width: 760px) {
+            .signup-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .signup-brand-panel {
+                min-height: auto;
+                height: auto;
+                gap: 14px;
+                padding: 14px clamp(22px, 7vw, 42px) 16px;
+            }
+
+            .signup-brand-message {
+                margin: 4px 0 0;
+            }
+
+            .signup-brand-eyebrow {
+                margin-bottom: 6px;
+            }
+
+            .signup-brand-message h1 {
+                max-width: 620px;
+                font-size: clamp(1.7rem, 7vw, 2.2rem);
+            }
+
+            .signup-brand-description,
+            .signup-brand-footer {
+                display: none;
+            }
+
+            .signup-content .signup-brand-description {
+                margin-top: 0;
+            }
+
+            .signup-content {
+                min-height: auto;
+                height: auto;
+                padding: 12px 18px 16px;
+            }
+
+            body.signup-page > .signup-layout > .signup-content > .login-card {
+                max-width: 480px;
+                padding-top: 22px;
+                padding-bottom: 20px;
+            }
+
+            .signup-content .login-card h2 {
+                font-size: 1.55rem;
+            }
+
+            .signup-content .login-description {
+                margin-bottom: 14px;
+            }
+
+            .signup-content .form-group {
+                margin-bottom: 10px;
+            }
+
+            .signup-password-hint {
+                margin: -4px 0 12px;
+            }
+
+            .signup-content .signup-prompt {
+                margin-top: 10px;
+            }
+
+        }
+
+        @media (max-width: 420px) {
+            .signup-brand-panel {
+                padding: 18px 20px 20px;
+            }
+
+            .signup-content {
+                padding: 18px 14px 24px;
+            }
+
+            body.signup-page > .signup-layout > .signup-content > .login-card {
+                padding: 24px 21px;
+            }
+        }
+
+        @media (max-width: 760px) and (max-height: 700px) {
+            .signup-brand-panel {
+                gap: 0;
+                padding: 12px 20px;
+            }
+
+            .signup-brand-message,
+            .signup-brand-footer {
+                display: none;
+            }
+
+            .signup-content {
+                padding: 10px 14px 14px;
+            }
+
+            body.signup-page > .signup-layout > .signup-content > .login-card {
+                padding: 18px 21px;
+            }
+
+            .signup-card-eyebrow {
+                margin-bottom: 8px;
+            }
+
+            .signup-content .login-card h2 {
+                font-size: 1.4rem;
+            }
+
+            .signup-content .login-description {
+                margin-bottom: 10px;
+            }
+
+            .signup-content .form-group {
+                margin-bottom: 8px;
+            }
+
+            .signup-content .form-group input {
+                min-height: 41px;
+            }
+
+            .signup-password-hint {
+                margin: -3px 0 8px;
+            }
+
+        }
+
+        @media (max-width: 400px) and (max-height: 600px) {
+            .signup-content {
+                padding-top: 8px;
+                padding-bottom: 10px;
+            }
+
+            body.signup-page > .signup-layout > .signup-content > .login-card {
+                padding-top: 16px;
+                padding-bottom: 16px;
+            }
+
+            .signup-content .login-description {
+                display: none;
+            }
+
+            .signup-content .login-card h2 {
+                margin-bottom: 12px;
+            }
+
+            .signup-content .form-group {
+                margin-bottom: 8px;
+            }
+        }
+
+    </style>
 </head>
-<body class="login-page">
-    <main class="login-container">
-        <div class="login-card">
-            <div class="login-logo">
-                <span class="logo-icon">T</span>
-                <h1>Pathfinder</h1>
-                <p>Asset Traceability System</p>
+<body class="login-page signup-page">
+    <div class="signup-layout">
+        <aside class="signup-brand-panel" aria-label="Pathfinder introduction">
+            <div class="signup-brand">
+                <span class="signup-brand-mark" aria-hidden="true">P</span>
+                <span class="signup-brand-name">
+                    <strong>Pathfinder</strong>
+                    <small>Asset Traceability</small>
+                </span>
             </div>
 
-            <h2>Create your account</h2>
-            <p class="login-description">
-                Sign up to get access to your Pathfinder dashboard.
-            </p>
+            <div class="signup-brand-message">
+                <h1>Welcome to Pathfinder</h1>
+            </div>
 
-            <form id="signup-form">
-                <div class="form-group">
-                    <label for="name">Full name</label>
-                    <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        placeholder="Your name"
-                        autocomplete="name"
-                        required
-                    >
-                </div>
+            <p class="signup-brand-footer">Pathfinder · Asset Traceability</p>
+        </aside>
 
-                <div class="form-group">
-                    <label for="email">Email address</label>
-                    <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        placeholder="you@example.com"
-                        autocomplete="email"
-                        required
-                    >
-                </div>
+        <main class="signup-content">
+            <section class="login-card" aria-labelledby="signup-heading">
+                <p class="signup-card-eyebrow">Get started</p>
+                <h2 id="signup-heading">Create an account</h2>
+                <p class="login-description">Enter your details to create an account.</p>
 
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        placeholder="Create a password"
-                        autocomplete="new-password"
-                        minlength="6"
-                        required
-                    >
-                </div>
+                <form id="signup-form">
+                    <div class="form-group">
+                        <label for="name">Full name</label>
+                        <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            placeholder="Your name"
+                            autocomplete="name"
+                            required
+                        >
+                    </div>
 
-                <button type="submit" class="login-button">
-                    <span id="signup-button-label">Sign up</span>
-                </button>
-            </form>
+                    <div class="form-group">
+                        <label for="email">Email address</label>
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            placeholder="you@company.com"
+                            autocomplete="email"
+                            autocapitalize="none"
+                            spellcheck="false"
+                            required
+                        >
+                    </div>
 
-            <p id="signup-message" class="signup-message" role="status" aria-live="polite">
-                Passwords must contain at least 6 characters.
-            </p>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Create a password"
+                            autocomplete="new-password"
+                            minlength="6"
+                            required
+                        >
+                    </div>
+                    <p class="signup-password-hint">Use at least 6 characters.</p>
 
-            <p class="signup-prompt">
-                Already have an account? <a href="login.html">Sign in</a>
-            </p>
-        </div>
-    </main>
+                    <button type="submit" class="login-button">
+                        <span id="signup-button-label">Create account</span>
+                    </button>
+                </form>
+
+                <p id="signup-message" class="signup-message" role="status" aria-live="polite"></p>
+                <p class="signup-prompt">Already have an account? <a href="login.html">Sign in</a></p>
+            </section>
+        </main>
+    </div>
 
     <script type="module" src="./auth-client.js"></script>
 </body>

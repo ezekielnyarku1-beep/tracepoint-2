@@ -25,7 +25,15 @@ const PUBLIC_FILES = new Set([
     "/alerts.html",
     "/reports.html",
     "/users.html",
+    "/roles.html",
     "/audit-log.html",
+    "/account.html",
+    "/admin-login.html",
+    "/signup.html",
+    "/forgot-password.html",
+    "/reset-password.html",
+    "/login.html",
+    "/signout.html",
     "/.vscode/index.html",
     "/.vscode/login.html",
     "/.vscode/admin-login.html",
@@ -37,7 +45,15 @@ const PUBLIC_FILES = new Set([
     "/.vscode/style.css",
     "/.vscode/auth-client.js",
     "/.vscode/app-shell.js",
-    "/.vscode/font-loader.js"
+    "/.vscode/font-loader.js",
+    "/.vscode/data-page-client.js",
+    "/.vscode/data-service.js",
+    "/.vscode/event-client.js",
+    "/.vscode/firebase-auth-client.js",
+    "/.vscode/firebase-client.js",
+    "/.vscode/firebase-config.js",
+    "/.vscode/firebase-emulator.js",
+    "/.vscode/page-config.js"
 ]);
 
 function normalizeEmail(value) {
@@ -145,11 +161,18 @@ function createApp(options = {}) {
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
-                scriptSrc: ["'self'"],
+                scriptSrc: ["'self'", "https://www.gstatic.com", "https://cdn.jsdelivr.net"],
                 styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
                 fontSrc: ["'self'", "https://fonts.gstatic.com"],
                 imgSrc: ["'self'", "data:"],
-                connectSrc: ["'self'"],
+                connectSrc: [
+                    "'self'",
+                    "https://identitytoolkit.googleapis.com",
+                    "https://securetoken.googleapis.com",
+                    "https://firestore.googleapis.com",
+                    "http://127.0.0.1:8080",
+                    "http://127.0.0.1:9099"
+                ],
                 objectSrc: ["'none'"],
                 frameAncestors: ["'none'"],
                 baseUri: ["'self'"],

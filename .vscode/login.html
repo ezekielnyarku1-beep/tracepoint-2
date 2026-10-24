@@ -499,114 +499,517 @@
                 transition-duration: 0.01ms !important;
             }
         }
+
+        body.login-page {
+            min-height: 100vh;
+            padding: 0;
+            display: block;
+            overflow-x: hidden;
+            background: #f4f6f3;
+        }
+
+        .login-layout {
+            width: 100%;
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: minmax(360px, 45%) minmax(0, 55%);
+            grid-template-rows: minmax(0, 1fr);
+        }
+
+        .login-brand-panel {
+            position: relative;
+            min-height: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+            padding: 50px clamp(34px, 5.8vw, 80px) 28px;
+            background: #153736;
+            color: #f8faf7;
+        }
+
+        .login-brand-panel::before,
+        .login-brand-panel::after {
+            position: absolute;
+            z-index: 0;
+            right: -175px;
+            bottom: -305px;
+            width: 560px;
+            height: 560px;
+            border: 1px solid rgba(227, 193, 60, 0.22);
+            border-radius: 50%;
+            content: "";
+            pointer-events: none;
+        }
+
+        .login-brand-panel::after {
+            right: -128px;
+            bottom: -360px;
+            width: 700px;
+            height: 700px;
+            border-color: rgba(255, 255, 255, 0.035);
+            box-shadow: 0 0 0 56px rgba(255, 255, 255, 0.025);
+        }
+
+        .login-brand,
+        .login-brand-message,
+        .login-brand-footer {
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .login-brand-mark {
+            width: 38px;
+            height: 38px;
+            display: grid;
+            flex: 0 0 38px;
+            place-items: center;
+            border-radius: 10px;
+            background: #f2c943;
+            color: #153736;
+            font-size: 1.25rem;
+            font-weight: 800;
+        }
+
+        .login-brand-name {
+            display: grid;
+            line-height: 1.25;
+        }
+
+        .login-brand-name strong {
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
+
+        .login-brand-name small {
+            margin-top: 4px;
+            color: #b7cfca;
+            font-size: 0.68rem;
+        }
+
+        .login-brand-message {
+            width: min(100%, 440px);
+            margin: 48px 0;
+        }
+
+        .login-brand-eyebrow,
+        .login-card-eyebrow {
+            margin: 0 0 22px;
+            color: #f2c943;
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .login-brand-message h1 {
+            max-width: 430px;
+            margin: 0;
+            color: #ffffff;
+            font-size: clamp(2.45rem, 4.5vw, 3.4rem);
+            font-weight: 750;
+            letter-spacing: -0.055em;
+            line-height: 1.02;
+        }
+
+        .login-brand-description {
+            max-width: 430px;
+            margin: 20px 0 0;
+            color: #c6d9d4;
+            font-size: clamp(0.95rem, 1.35vw, 1.08rem);
+            line-height: 1.7;
+        }
+
+        .login-brand-footer {
+            margin: 0;
+            color: #9fbcb6;
+            font-size: 0.72rem;
+        }
+
+        .login-content {
+            max-width: none;
+            min-width: 0;
+            min-height: 0;
+            height: 100%;
+            display: grid;
+            place-items: center;
+            margin: 0;
+            padding: 48px clamp(24px, 6vw, 84px);
+        }
+
+        body.login-page > .login-layout > .login-content > .login-card {
+            width: min(100%, 432px);
+            margin: 0;
+            padding: clamp(30px, 4vw, 46px) clamp(24px, 4vw, 42px) 34px;
+            overflow: visible;
+            border: 1px solid #e0e6e1;
+            border-radius: 14px;
+            background: #fffefa;
+            box-shadow: 0 20px 55px rgba(29, 55, 47, 0.08);
+            animation: none;
+        }
+
+        body.login-page > .login-layout > .login-content > .login-card::before {
+            content: none;
+        }
+
+        .login-card .login-card-eyebrow {
+            margin: 0 0 16px;
+            color: #087f75;
+        }
+
+        .login-card h2 {
+            margin: 0 0 8px;
+            color: #172f2f;
+            font-size: clamp(1.55rem, 2.5vw, 1.85rem);
+            font-weight: 750;
+            letter-spacing: -0.045em;
+            line-height: 1.2;
+        }
+
+        .login-card .intro {
+            margin: 0 0 26px;
+            color: #6d7c78;
+            font-size: 0.88rem;
+        }
+
+        .login-card .field {
+            margin-bottom: 18px;
+        }
+
+        .login-card .field label {
+            margin-bottom: 7px;
+            color: #233b38;
+            font-size: 0.76rem;
+            font-weight: 650;
+        }
+
+        .login-card .input-icon {
+            display: none;
+        }
+
+        .login-card .field input {
+            min-height: 47px;
+            padding: 11px 13px;
+            border-color: #d9e2dc;
+            border-radius: 9px;
+            background: #ffffff;
+            font-size: 0.85rem;
+        }
+
+        .login-card .field input:focus {
+            border-color: #0b827b;
+            box-shadow: 0 0 0 3px rgba(11, 130, 123, 0.14);
+        }
+
+        .login-card .field label[for="password"] {
+            display: inline-block;
+        }
+
+        .password-field-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .password-field-heading a {
+            color: #087f75;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .login-card .password-input {
+            padding-right: 58px !important;
+        }
+
+        .login-card .password-toggle {
+            right: 4px;
+            width: auto;
+            min-width: 48px;
+            height: 40px;
+            padding: 0 8px;
+            color: #087f75;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .login-card .password-toggle svg {
+            display: none;
+        }
+
+        .login-card .password-toggle:hover {
+            background: #edf5f2;
+            color: #075f59;
+        }
+
+        .login-card .login-options a,
+        .login-card .signup-prompt a {
+            color: #087f75;
+        }
+
+        .login-card .login-button {
+            min-height: 46px;
+            border-radius: 8px;
+            background: #07867e;
+            box-shadow: none;
+            font-size: 0.82rem;
+        }
+
+        .login-card .login-button:hover:not(:disabled) {
+            background: #076f69;
+            box-shadow: 0 5px 13px rgba(8, 70, 62, 0.14);
+        }
+
+        .login-card .form-status {
+            margin-top: 10px;
+            font-size: 0.74rem;
+        }
+
+        .login-card .signup-prompt {
+            margin: 15px 0 0;
+            font-size: 0.73rem;
+        }
+
+        .login-card .login-footer {
+            margin: 14px 0 0;
+            padding: 0;
+            border: 0;
+            font-size: 0.68rem;
+        }
+
+        @media (max-width: 760px) {
+            .login-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .login-brand-panel {
+                min-height: auto;
+                height: auto;
+                gap: 26px;
+                padding: 24px clamp(22px, 7vw, 42px) 28px;
+            }
+
+            .login-brand-message {
+                margin: 14px 0 0;
+            }
+
+            .login-brand-eyebrow {
+                margin-bottom: 10px;
+            }
+
+            .login-brand-message h1 {
+                max-width: 620px;
+                font-size: clamp(1.9rem, 8vw, 2.55rem);
+            }
+
+            .login-brand-description {
+                margin-top: 10px;
+                font-size: 0.86rem;
+                line-height: 1.5;
+            }
+
+            .login-brand-footer {
+                display: none;
+            }
+
+            .login-content {
+                min-height: auto;
+                height: auto;
+                padding: 28px 18px 36px;
+            }
+
+            body.login-page > .login-layout > .login-content > .login-card {
+                max-width: 480px;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .login-brand-panel {
+                padding: 20px 20px 24px;
+            }
+
+            .login-content {
+                padding: 22px 14px 30px;
+            }
+
+            body.login-page > .login-layout > .login-content > .login-card {
+                padding: 28px 22px 26px;
+            }
+        }
+
+        @media (max-width: 760px) and (max-height: 700px) {
+            .login-brand-panel {
+                gap: 0;
+                padding: 12px 20px;
+            }
+
+            .login-brand-message,
+            .login-brand-footer {
+                display: none;
+            }
+
+            .login-content {
+                padding: 10px 14px 14px;
+            }
+
+            body.login-page > .login-layout > .login-content > .login-card {
+                padding: 20px 22px;
+            }
+
+            .login-card .login-card-eyebrow {
+                margin-bottom: 8px;
+            }
+
+            .login-card h2 {
+                font-size: 1.45rem;
+            }
+
+            .login-card .intro {
+                margin-bottom: 12px;
+            }
+
+            .login-card .field {
+                margin-bottom: 10px;
+            }
+
+            .login-card .field input {
+                min-height: 42px;
+            }
+
+            .login-card .login-button {
+                min-height: 42px;
+            }
+
+            .login-card .signup-prompt {
+                margin-top: 9px;
+            }
+
+            .login-card .login-footer {
+                margin-top: 8px;
+            }
+        }
+
+        @media (max-width: 400px) and (max-height: 600px) {
+            .login-content {
+                padding-top: 8px;
+                padding-bottom: 10px;
+            }
+
+            body.login-page > .login-layout > .login-content > .login-card {
+                padding: 16px 20px;
+            }
+
+            .login-card .intro,
+            .login-card .login-footer {
+                display: none;
+            }
+
+            .login-card h2 {
+                margin-bottom: 12px;
+            }
+
+            .login-card .field {
+                margin-bottom: 8px;
+            }
+        }
     </style>
 </head>
 <body class="login-page">
-    <main class="login-card">
-        <header class="brand">
-            <span class="brand-mark" aria-hidden="true">T</span>
-            <h1>Pathfinder</h1>
-            <p>Asset Traceability System</p>
-        </header>
-
-        <div class="login-mode-toggle" id="login-mode-toggle" role="radiogroup" aria-label="Sign-in type" data-mode="user">
-            <span class="login-mode-highlight" aria-hidden="true"></span>
-            <button class="login-mode-option" id="user-mode" type="button" role="radio" aria-checked="true" tabindex="0" data-mode="user">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/>
-                    <path d="M5 20c.7-3.3 3.1-5 7-5s6.3 1.7 7 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                </svg>
-                <span>User</span>
-            </button>
-            <button class="login-mode-option" id="admin-mode" type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="admin">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M12 3 5 6v5c0 4.6 2.9 8.2 7 10 4.1-1.8 7-5.4 7-10V6l-7-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span>Admin / Supervisor</span>
-            </button>
-        </div>
-        <h2 id="login-heading">Welcome back</h2>
-        <p class="intro">Sign in to access your dashboard.</p>
-
-        <form id="login-form" novalidate>
-            <div class="field">
-                <label for="email">Email address</label>
-                <div class="input-wrap">
-                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/>
-                        <path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        placeholder="you@example.com"
-                        autocomplete="email"
-                        autocapitalize="none"
-                        spellcheck="false"
-                        required
-                    >
-                </div>
-                <p class="field-error" id="email-error" hidden></p>
+    <div class="login-layout">
+        <aside class="login-brand-panel" aria-label="Pathfinder introduction">
+            <div class="login-brand">
+                <span class="login-brand-mark" aria-hidden="true">P</span>
+                <span class="login-brand-name">
+                    <strong>Pathfinder</strong>
+                    <small>Asset Traceability</small>
+                </span>
             </div>
 
-            <div class="field">
-                <label for="password">Password</label>
-                <div class="input-wrap">
-                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
-                        <path d="M8 10V7a4 4 0 1 1 8 0v3M12 14v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                    <input
-                        class="password-input"
-                        type="password"
-                        id="password"
-                        name="password"
-                        placeholder="Enter your password"
-                        autocomplete="current-password"
-                        aria-describedby="caps-warning"
-                        required
-                    >
-                    <button
-                        class="password-toggle"
-                        type="button"
-                        id="password-toggle"
-                        aria-label="Show password"
-                        aria-pressed="false"
-                    >
-                        <svg id="eye-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                            <circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.8"/>
-                        </svg>
-                        <svg id="eye-off-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" hidden>
-                            <path d="m3 3 18 18M10.6 6.2A10.8 10.8 0 0 1 12 6c6.1 0 9.5 6 9.5 6a16 16 0 0 1-3.1 3.7M6.2 6.8C3.8 8.3 2.5 12 2.5 12s3.4 6 9.5 6c1.2 0 2.3-.2 3.3-.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        </svg>
+            <div class="login-brand-message">
+                <p class="login-brand-eyebrow">Innovation &amp; Excellence</p>
+                <h1>Forward-Thinking Solutions For Tomorrow’s Challenges.</h1>
+                <p class="login-brand-description">Inpath Technologies</p>
+            </div>
+
+            <p class="login-brand-footer">Pathfinder · Asset Traceability</p>
+        </aside>
+
+        <main class="login-content">
+            <section class="login-card" aria-labelledby="login-heading">
+                <p class="login-card-eyebrow">Welcome back</p>
+                <h2 id="login-heading">Sign in to Pathfinder</h2>
+                <p class="intro">Enter your account details to continue.</p>
+
+                <form id="login-form" novalidate>
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <div class="input-wrap">
+                            <input
+                                type="email"
+                                id="email"
+                                name="email"
+                                placeholder="you@company.com"
+                                autocomplete="email"
+                                autocapitalize="none"
+                                spellcheck="false"
+                                required
+                            >
+                        </div>
+                        <p class="field-error" id="email-error" hidden></p>
+                    </div>
+
+                    <div class="field">
+                        <div class="password-field-heading">
+                            <label for="password">Password</label>
+                            <a href="forgot-password.html">Forgot password?</a>
+                        </div>
+                        <div class="input-wrap">
+                            <input
+                                class="password-input"
+                                type="password"
+                                id="password"
+                                name="password"
+                                placeholder="Enter your password"
+                                autocomplete="current-password"
+                                aria-describedby="caps-warning"
+                                required
+                            >
+                            <button
+                                class="password-toggle"
+                                type="button"
+                                id="password-toggle"
+                                aria-label="Show password"
+                                aria-pressed="false"
+                            >Show</button>
+                        </div>
+                        <p class="field-error" id="password-error" hidden></p>
+                        <p class="caps-warning" id="caps-warning" aria-live="polite" hidden>Caps Lock is on.</p>
+                    </div>
+
+                    <button class="login-button" id="submit-button" type="submit">
+                        <span id="button-label">Sign in</span>
+                        <span class="spinner" id="button-spinner" aria-hidden="true" hidden></span>
                     </button>
-                </div>
-                <p class="field-error" id="password-error" hidden></p>
-                <p class="caps-warning" id="caps-warning" aria-live="polite" hidden>Caps Lock is on.</p>
-            </div>
+                    <p class="form-status" id="login-status" role="status" aria-live="polite"></p>
+                </form>
 
-            <div class="login-options">
-                <label class="remember-label" for="remember">
-                    <input type="checkbox" id="remember" name="remember">
-                    Remember me
-                </label>
-                <a href="forgot-password.html">Forgot password?</a>
-            </div>
-
-            <button class="login-button" id="submit-button" type="submit">
-                <span id="button-label">Sign in</span>
-                <span class="spinner" id="button-spinner" aria-hidden="true" hidden></span>
-            </button>
-            <p class="form-status" id="login-status" role="status" aria-live="polite"></p>
-        </form>
-
-        <p class="login-footer">Protected access for authorized Pathfinder users.</p>
-        <p class="signup-prompt" id="signup-prompt">Don&rsquo;t have an account? <a href="signup.html">Sign up</a></p>
-    </main>
+                <p class="signup-prompt" id="signup-prompt">New to Pathfinder? <a href="signup.html">Sign up</a></p>
+                <p class="login-footer">Authorized Pathfinder users only.</p>
+            </section>
+        </main>
+    </div>
 
     <script type="module" src="./auth-client.js"></script>
 </body>

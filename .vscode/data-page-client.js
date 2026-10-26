@@ -226,21 +226,28 @@ function setupDashboard() {
         <section class="dashboard-section" aria-labelledby="dashboard-recent"><h3 id="dashboard-recent">Recent Activity</h3>
             <div id="recent-activity">${createTable(["Event", "Asset", "Date"], "", "Loading recent activity…")}</div>
         </section>`);
-    Promise.all([
-        getDocumentCount("kiosks"),
-        getDocumentCount("components"),
-        getAlertCountSummary(context.profile),
-        getDocumentCount("faults"),
-        loadRecent("events", 10)
-    ]).then(([kiosks, components, alerts, faults, events]) => {
-        document.getElementById("stat-kiosks").textContent = kiosks;
-        document.getElementById("stat-components").textContent = components;
-        document.getElementById("stat-alerts").textContent = alerts;
-        document.getElementById("stat-faults").textContent = faults;
+    const stats = [
+        ["stat-kiosks", getDocumentCount("kiosks")],
+        ["stat-components", getDocumentCount("components")],
+        ["stat-alerts", getAlertCountSummary(context.profile)],
+        ["stat-faults", getDocumentCount("faults")]
+    ];
+    stats.forEach(([id, request]) => {
+        request.then((value) => {
+            const stat = document.getElementById(id);
+            if (stat) stat.textContent = value;
+        }).catch((error) => {
+            const stat = document.getElementById(id);
+            if (stat) stat.textContent = "—";
+            setStatus(error.message || "Could not load dashboard data.", true);
+        });
+    });
+    loadRecent("events", 10).then((events) => {
         const rows = events.map((item) =>
             `<tr><td>${cellText(item.eventType)} — ${cellText(item.summary)}</td><td>${cellText(item.componentId || item.kioskId)}</td><td>${cellText(formatDate(item.createdAt))}</td></tr>`
         ).join("");
-        document.getElementById("recent-activity").innerHTML =
+        const recentActivity = document.getElementById("recent-activity");
+        if (recentActivity) recentActivity.innerHTML =
             createTable(["Event", "Asset", "Date"], rows, "No recent activity yet.");
     }).catch((error) => setStatus(error.message || "Could not load dashboard data.", true));
 }

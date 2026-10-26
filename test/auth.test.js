@@ -151,7 +151,15 @@ test("static server does not expose server source or environment files", async (
             assert.match(headers["content-security-policy"], /https:\/\/www\.gstatic\.com/);
             assert.match(headers["content-security-policy"], /http:\/\/127\.0\.0\.1:9099/);
         });
-    await request(app).get("/signout.html").expect(200);
+    await request(app).get("/signout.html")
+        .expect(200)
+        .expect(({ text }) => assert.match(text, /src="\.vscode\/signout-client\.js"/));
+    await request(app).get("/.vscode/signout-client.js")
+        .expect(200)
+        .expect(({ text }) => {
+            assert.match(text, /firebase-auth\.js/);
+            assert.doesNotMatch(text, /firebase-firestore/);
+        });
     await request(app).get("/.vscode/page-config.js").expect(200);
     await request(app).get("/.vscode/firebase-emulator.js").expect(200);
     await request(app).get("/.vscode/data-page-client.js").expect(200);

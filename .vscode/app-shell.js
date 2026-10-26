@@ -1,5 +1,36 @@
+const PROFILE_CACHE_KEY = "pathfinder.verified-profile";
+const PROFILE_CACHE_MAX_AGE_MS = 4 * 60 * 60 * 1000;
+
+function readCachedProfile() {
+    try {
+        const cached = JSON.parse(sessionStorage.getItem(PROFILE_CACHE_KEY) || "null");
+        if (
+            !cached ||
+            !Number.isFinite(cached.savedAt) ||
+            Date.now() - cached.savedAt > PROFILE_CACHE_MAX_AGE_MS ||
+            typeof cached.id !== "string" ||
+            !["technician", "supervisor", "administrator"].includes(cached.role)
+        ) return null;
+        return {
+            id: cached.id,
+            role: cached.role,
+            permissions: cached.permissions
+        };
+    } catch (error) {
+        console.warn("Could not read the cached navigation profile.", error);
+        return null;
+    }
+}
+
+function permissionsMatch(left, right) {
+    const normalize = (permissions) => Object.entries(permissions || {})
+        .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+    return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
+}
+
 async function setupDashboardMenu() {
     if (document.getElementById("app-sidebar")) return;
+    const cachedProfile = readCachedProfile();
 
     const header = document.querySelector("body > header");
     const navigation = document.querySelector("body > nav");
@@ -112,12 +143,66 @@ async function setupDashboardMenu() {
     });
     window.addEventListener("resize", updateState);
     updateState();
+    setupNavigationPrefetch();
+
+    const userActions = document.createElement("div");
+    userActions.className = "app-user-actions";
+
+    const userIdentity = document.createElement("div");
+    userIdentity.className = "app-user-identity";
+    userIdentity.innerHTML = "<strong>INPATH</strong><span>IT / Systems Administrator</span>";
+
+    const userButtons = document.createElement("div");
+    userButtons.className = "app-user-buttons";
+    userActions.append(userIdentity, userButtons);
+
+    if (heading.classList.contains("dashboard-heading")) {
+        const headingCopy = document.createElement("div");
+        headingCopy.className = "app-heading-copy";
+        headingCopy.append(...Array.from(heading.children));
+        heading.prepend(menuButton);
+        heading.append(headingCopy, userActions);
+    } else if (
+        pageTitle.parentElement?.classList.contains("app-heading-copy") &&
+        pageTitle.parentElement.parentElement?.classList.contains("app-page-heading")
+    ) {
+        heading = pageTitle.parentElement.parentElement;
+        heading.prepend(menuButton);
+        heading.append(userActions);
+    } else {
+        const intro = pageTitle.nextElementSibling;
+        const headingRow = document.createElement("div");
+        const headingCopy = document.createElement("div");
+        headingRow.className = "app-page-heading";
+        let headingStart = pageTitle;
+        while (headingStart.parentElement !== main) {
+            headingStart = headingStart.parentElement;
+        }
+        main.insertBefore(headingRow, headingStart);
+        headingCopy.className = "app-heading-copy";
+        headingCopy.append(pageTitle);
+        if (intro?.tagName === "P") headingCopy.append(intro);
+        headingRow.append(menuButton, headingCopy, userActions);
+        heading = headingRow;
+    }
 
     const { APP_PAGES, hasPageAccess } = await import("./page-config.js");
     if (!window.pathfinderProfile?.profile) {
         if (window.pathfinderProfileError || window.pathfinderAuthError) return;
     }
-    const profile = await new Promise((resolve) => {
+    if (cachedProfile && !window.pathfinderProfile?.profile) {
+        document.addEventListener("pathfinder:profile-ready", (event) => {
+            const verifiedProfile = event.detail.profile;
+            if (
+                cachedProfile.id !== verifiedProfile.id ||
+                cachedProfile.role !== verifiedProfile.role ||
+                !permissionsMatch(cachedProfile.permissions, verifiedProfile.permissions)
+            ) {
+                window.location.reload();
+            }
+        }, { once: true });
+    }
+    const profile = window.pathfinderProfile?.profile || cachedProfile || await new Promise((resolve) => {
         if (window.pathfinderProfile?.profile) {
             resolve(window.pathfinderProfile.profile);
             return;
@@ -185,53 +270,10 @@ async function setupDashboardMenu() {
         signoutLink.textContent = "Sign out";
     }
 
-    const userActions = document.createElement("div");
-    userActions.className = "app-user-actions";
-
     accountLink.classList.add("app-account-link");
     accountLink.parentElement.classList.add("app-account-nav-item");
 
-    const userIdentity = document.createElement("div");
-    userIdentity.className = "app-user-identity";
-    userIdentity.innerHTML = "<strong>INPATH</strong><span>IT / Systems Administrator</span>";
-
-    const userButtons = document.createElement("div");
-    userButtons.className = "app-user-buttons";
     if (signoutLink) userButtons.append(signoutLink);
-    userActions.append(userIdentity);
-    if (userButtons.childElementCount) userActions.append(userButtons);
-
-    if (heading.classList.contains("dashboard-heading")) {
-        const headingCopy = document.createElement("div");
-        headingCopy.className = "app-heading-copy";
-        headingCopy.append(...Array.from(heading.children));
-        heading.prepend(menuButton);
-        heading.append(headingCopy, userActions);
-    } else if (
-        pageTitle.parentElement?.classList.contains("app-heading-copy") &&
-        pageTitle.parentElement.parentElement?.classList.contains("app-page-heading")
-    ) {
-        heading = pageTitle.parentElement.parentElement;
-        heading.prepend(menuButton);
-        heading.append(userActions);
-    } else {
-        const intro = pageTitle.nextElementSibling;
-        const headingRow = document.createElement("div");
-        const headingCopy = document.createElement("div");
-        headingRow.className = "app-page-heading";
-        let headingStart = pageTitle;
-        while (headingStart.parentElement !== main) {
-            headingStart = headingStart.parentElement;
-        }
-        main.insertBefore(headingRow, headingStart);
-        headingCopy.className = "app-heading-copy";
-        headingCopy.append(pageTitle);
-        if (intro?.tagName === "P") headingCopy.append(intro);
-        headingRow.append(menuButton, headingCopy, userActions);
-        heading = headingRow;
-    }
-
-    updateState();
 }
 
 function setupNavigationPrefetch() {
@@ -257,12 +299,15 @@ function setupNavigationPrefetch() {
         document.head.append(prefetch);
     };
 
-    document.querySelectorAll("nav a, .app-user-actions a").forEach((link) => {
-        link.addEventListener("pointerenter", () => prefetchPage(link), { once: true });
-        link.addEventListener("focus", () => prefetchPage(link), { once: true });
-    });
+    const prefetchFromEvent = (event) => {
+        if (!(event.target instanceof Element)) return;
+        const link = event.target.closest("a");
+        if (link && navigation.contains(link)) prefetchPage(link);
+    };
+    navigation.addEventListener("pointerover", prefetchFromEvent);
+    navigation.addEventListener("focusin", prefetchFromEvent);
 }
 
-setupDashboardMenu().then(setupNavigationPrefetch).catch((error) => {
+setupDashboardMenu().catch((error) => {
     console.error("Could not build the application navigation.", error);
 });

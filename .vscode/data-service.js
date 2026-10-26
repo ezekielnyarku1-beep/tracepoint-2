@@ -4,6 +4,7 @@ import {
     doc,
     getCountFromServer,
     getDoc,
+    getDocFromCache,
     getDocs,
     limit,
     orderBy,
@@ -69,6 +70,17 @@ function verifiedUserProfile(snapshot) {
         throw new Error("Your account profile is missing a valid role. Ask an administrator to review it.");
     }
     return profile;
+}
+
+export async function getCachedUserProfile(user) {
+    try {
+        return verifiedUserProfile(await getDocFromCache(doc(db, "users", user.uid)));
+    } catch (error) {
+        if (["unavailable", "failed-precondition", "unimplemented"].includes(error?.code)) {
+            return null;
+        }
+        throw error;
+    }
 }
 
 export async function ensureUserProfile(user) {

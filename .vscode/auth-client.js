@@ -29,6 +29,34 @@ let offlineSyncContext = null;
 let authStateSequence = 0;
 let presenceHeartbeat = null;
 let presenceVisibilityHandler = null;
+const PROFILE_CACHE_KEY = "pathfinder.verified-profile";
+
+function cacheVerifiedProfile(user, profile) {
+    try {
+        sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
+            id: user.uid,
+            role: profile.role,
+            permissions: profile.permissions || null,
+            savedAt: Date.now()
+        }));
+    } catch (error) {
+        console.warn("Could not cache the verified navigation profile.", error);
+    }
+}
+
+function clearCachedProfile() {
+    try {
+        sessionStorage.removeItem(PROFILE_CACHE_KEY);
+    } catch (error) {
+        console.warn("Could not clear the cached navigation profile.", error);
+    }
+}
+
+function permissionsMatch(left, right) {
+    const normalize = (permissions) => Object.entries(permissions || {})
+        .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+    return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
+}
 
 async function recordLastSignIn(user, profile) {
     const lastSignIn = user.metadata.lastSignInTime
@@ -545,17 +573,6 @@ function setupAccountPage() {
     });
 }
 
-async function setupSignoutPage() {
-    const message = document.getElementById("signout-message");
-    if (!message) return;
-    try {
-        await signOut(auth);
-        window.location.replace(resolveAppPath("login.html"));
-    } catch (error) {
-        message.textContent = friendlyAuthError(error);
-    }
-}
-
 async function handleAuthState(user) {
     const sequence = ++authStateSequence;
     const isLoginPage = Boolean(document.getElementById("login-form"));
@@ -647,6 +664,7 @@ async function handleAuthState(user) {
         window.pathfinderAuthError = null;
         delete document.body.dataset.userRole;
         delete window.pathfinderProfile;
+        clearCachedProfile();
         window.location.replace(resolveAppPath("login.html"));
         return;
     }
@@ -657,6 +675,7 @@ async function handleAuthState(user) {
         window.pathfinderAuthError = null;
         delete document.body.dataset.userRole;
         delete window.pathfinderProfile;
+        clearCachedProfile();
         return;
     }
 
@@ -664,9 +683,20 @@ async function handleAuthState(user) {
     if (protectedPage) {
         let profile;
         let syncOfflineActions;
+        let refreshProfile = null;
         try {
             const dataService = await import("./data-service.js");
-            profile = await dataService.ensureUserProfile(user);
+            profile = await dataService.getCachedUserProfile(user);
+            if (profile) {
+                refreshProfile = dataService.ensureUserProfile(user).catch((error) => {
+                    if (navigator.onLine) {
+                        console.error("Could not refresh the cached account profile.", error);
+                    }
+                    return null;
+                });
+            } else {
+                profile = await dataService.ensureUserProfile(user);
+            }
             syncOfflineActions = dataService.syncOfflineActions;
         } catch (error) {
             if (sequence !== authStateSequence || auth.currentUser?.uid !== user.uid) return;
@@ -681,12 +711,9 @@ async function handleAuthState(user) {
             return;
         }
         if (sequence !== authStateSequence || auth.currentUser?.uid !== user.uid) return;
-        try {
-            await recordLastSignIn(user, profile);
-        } catch (error) {
+        recordLastSignIn(user, profile).catch((error) => {
             console.error("Could not record the user's last sign-in.", error);
-        }
-        if (sequence !== authStateSequence || auth.currentUser?.uid !== user.uid) return;
+        });
 
         const currentFile = window.location.pathname.split("/").pop().toLowerCase();
         const { APP_PAGES, hasPageAccess } = await import("./page-config.js");
@@ -708,6 +735,7 @@ async function handleAuthState(user) {
 
         window.pathfinderProfileError = null;
         window.pathfinderAuthError = null;
+        cacheVerifiedProfile(user, profile);
         const needsOfflineSync = !deniedDashboard &&
             Boolean(document.querySelector("main[data-page], #event-form"));
         offlineSyncContext = needsOfflineSync ? { user, profile, syncOfflineActions } : null;
@@ -716,6 +744,17 @@ async function handleAuthState(user) {
         document.dispatchEvent(new CustomEvent("pathfinder:profile-ready", {
             detail: { user, profile }
         }));
+
+        if (refreshProfile) {
+            refreshProfile.then((verifiedProfile) => {
+                if (!verifiedProfile) return;
+                if (sequence !== authStateSequence || auth.currentUser?.uid !== user.uid) return;
+                const permissionsChanged =
+                    profile.role !== verifiedProfile.role ||
+                    !permissionsMatch(profile.permissions, verifiedProfile.permissions);
+                if (permissionsChanged) window.location.reload();
+            });
+        }
 
         if (!needsOfflineSync) {
             const email = document.getElementById("account-email");
@@ -760,6 +799,29 @@ function profileLoadErrorMessage(error) {
     return error?.message || "Could not verify your account profile. Check your Firestore configuration and rules.";
 }
 
+function setupSignOutLinks() {
+    document.addEventListener("click", async (event) => {
+        if (!(event.target instanceof Element)) return;
+        const link = event.target.closest("a.nav-signout");
+        if (!link) return;
+
+        event.preventDefault();
+        link.setAttribute("aria-disabled", "true");
+        link.textContent = "Signing out…";
+        clearCachedProfile();
+        try {
+            await signOut(auth);
+            window.location.replace(resolveAppPath("login.html"));
+        } catch (error) {
+            link.removeAttribute("aria-disabled");
+            link.textContent = "Sign out";
+            const status = document.getElementById("account-status");
+            if (status) status.textContent = friendlyAuthError(error);
+            else console.error("Could not sign out.", error);
+        }
+    });
+}
+
 window.addEventListener("online", async () => {
     if (!offlineSyncContext) {
         if (auth.currentUser && document.querySelector("main[data-page], #event-form")) {
@@ -786,11 +848,13 @@ function initialize() {
     setupForgotPasswordPage();
     setupResetPasswordPage();
     setupAccountPage();
+    setupSignOutLinks();
     onAuthStateChanged(auth, handleAuthState, (error) => {
         authStateSequence += 1;
         offlineSyncContext = null;
         window.pathfinderAuthError = error;
         window.pathfinderProfileError = null;
+        clearCachedProfile();
         delete document.body.dataset.userRole;
         delete window.pathfinderProfile;
         const status = document.getElementById("login-status") ||
@@ -802,7 +866,6 @@ function initialize() {
             document.dispatchEvent(new CustomEvent("pathfinder:auth-error", { detail: { error } }));
         }
     });
-    setupSignoutPage();
 }
 
 initialize();

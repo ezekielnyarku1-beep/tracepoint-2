@@ -44,6 +44,7 @@ const PUBLIC_FILES = new Set([
     "/.vscode/account.html",
     "/.vscode/style.css",
     "/.vscode/auth-client.js",
+    "/.vscode/signout-client.js",
     "/.vscode/app-shell.js",
     "/.vscode/font-loader.js",
     "/.vscode/data-page-client.js",
